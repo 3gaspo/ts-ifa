@@ -1,2 +1,3 @@
 # ts-ifa
-Informed Forecasting Adapter
+
+Time Series Informed Forecasting Adapter
