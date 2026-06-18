@@ -17,7 +17,10 @@ import numpy as np
 import pandas as pd
 import torch
 
-from .models import load_model
+try:
+    from .models import load_model
+except ImportError:  # pragma: no cover - direct script execution
+    from models import load_model
 
 
 def set_seed(seed: int | None) -> None:
@@ -161,7 +164,7 @@ class CsvTimeSeries:
         values = self.values[start : start + lags + horizon]
         if users is not None:
             values = values[:, list(users)]
-        arr = torch.as_tensor(values.T, dtype=torch.float32, device=device)
+        arr = torch.as_tensor(values.T.copy(), dtype=torch.float32, device=device)
         x = arr[:, None, :lags]
         y = arr[:, None, lags:]
         return x, y
@@ -186,13 +189,17 @@ class CsvTimeSeries:
             values = self.past_covariates.iloc[start : start + lags].to_numpy(
                 dtype=np.float32
             )
-            past = torch.as_tensor(values.T[None, :, :], dtype=torch.float32, device=device)
+            past = torch.as_tensor(
+                values.T[None, :, :].copy(),
+                dtype=torch.float32,
+                device=device,
+            )
         if self.future_covariates is not None:
             values = self.future_covariates.iloc[
                 start + lags : start + lags + horizon
             ].to_numpy(dtype=np.float32)
             future = torch.as_tensor(
-                values.T[None, :, :],
+                values.T[None, :, :].copy(),
                 dtype=torch.float32,
                 device=device,
             )
