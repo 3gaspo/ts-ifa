@@ -10,11 +10,13 @@ This repository contains Python tools for retrieval-based residual adaptation ex
 - `patchtst.py`: PatchTST implementation with current-format inference hooks.
 - `ts_ifa.py`: TS-IFA (Time Series Informed Forecasting Adapter) model imports.
 - `train_ts_ifa.py`: payload-based training script for TS-IFA.
+- `evaluate_baselines.py`: notebook/LaTeX baseline adapters and learned gates from extraction payloads.
 - `foundation_models.py`: compatibility imports only; new code should use `chronos_model.py` or `patchtst.py`.
 - `neighbors.py`: aligned window generation, feature representations, and exact KNN search.
 - `extraction.py`: neighbor extraction and prediction payload generation.
 - `features.py`: feature tables and diagnostic plots from extraction payloads.
 - `experiment_univariate.py`: no-neighbor baseline evaluation over all users.
+- `slurm/`: cluster scripts for baseline sweeps and TS-IFA training/evaluation.
 - `visu/`: plotting helpers and notebooks.
 - `tests/smoke/`: tiny CSV fixture and load/inference checks for local or cluster sanity tests.
 
@@ -27,7 +29,7 @@ Input data is a date-indexed CSV. Target user columns become `dataset.frame`; op
 - past covariates: `(1, channels, lags)`
 - future covariates: `(1, channels, horizon)`
 
-`experiment_univariate.py` loads a model and evaluates direct predictions on selected splits. `extraction.py` builds query windows, builds an aligned datastore from earlier windows, computes features in `raw`, `fourier`, `model`, `chronos`, or `patchtst` space, searches nearest neighbors, and saves prediction payloads. `features.py` reads those payloads and produces flat feature summaries and plots.
+`experiment_univariate.py` loads a model and evaluates direct predictions on selected splits. `extraction.py` builds query windows, builds an aligned datastore from earlier windows, computes features in `raw`, `fourier`, `model`, `chronos`, or `patchtst` space, searches nearest neighbors, and saves prediction payloads. `features.py` reads those payloads and produces flat feature summaries and plots. `evaluate_baselines.py` fits the residual mixtures and learned scalar or horizon gates on the train payload, then evaluates them on train/eval.
 
 ## Smoke Checks
 
@@ -72,6 +74,35 @@ Train TS-IFA from extracted payloads:
 python train_ts_ifa.py --input-dir outputs/extraction_neighbors/electricity_chronos_k5 --epochs 20 --batch-size 256 --lr 1e-3 --normalization instance
 ```
 
+Evaluate payload baselines:
+
+```powershell
+python evaluate_baselines.py --input-dir outputs/extraction_neighbors/electricity_chronos_k5 --train-horizon-gate
+```
+
+## SLURM Experiments
+
+Submit the full baseline sweep:
+
+```bash
+sbatch slurm/evaluate_baselines.slurm
+```
+
+Submit TS-IFA extraction, training, and evaluation:
+
+```bash
+sbatch slurm/train_ts_ifa.slurm
+```
+
+Override cluster settings with environment variables:
+
+```bash
+DATASETS="electricity traffic" SETTINGS="168:24 672:168" CHRONOS_WEIGHTS_PATH=/path/to/chronos sbatch slurm/evaluate_baselines.slurm
+MODEL=chronos NEIGHBORS=5 EPOCHS=50 LR=1e-3 sbatch slurm/train_ts_ifa.slurm
+```
+
+The baseline job runs direct model evaluations plus neighbor payload extraction, feature summaries, and adapter baselines. The TS-IFA job reuses an existing payload unless `FORCE_EXTRACT=true` is set, then writes `ts_ifa/eval_metrics.json` and `ts_ifa/training_nmse.pdf`.
+
 ## Outputs
 
-Write generated artifacts under `outputs/`. Typical files include `*_prediction_payload.pt`, `ts_ifa.pt`, `training_nmse.pdf`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.
+Write generated artifacts under `outputs/`. Typical files include `*_prediction_payload.pt`, `baseline_metrics.csv`, `ts_ifa.pt`, `training_nmse.pdf`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.
