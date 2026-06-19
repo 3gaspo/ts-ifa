@@ -16,6 +16,7 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 import pandas as pd
 import torch
+from einops import rearrange
 
 try:
     from .models import load_model
@@ -164,7 +165,11 @@ class CsvTimeSeries:
         values = self.values[start : start + lags + horizon]
         if users is not None:
             values = values[:, list(users)]
-        arr = torch.as_tensor(values.T.copy(), dtype=torch.float32, device=device)
+        arr = torch.as_tensor(
+            rearrange(values, "time user -> user time").copy(),
+            dtype=torch.float32,
+            device=device,
+        )
         x = arr[:, None, :lags]
         y = arr[:, None, lags:]
         return x, y
@@ -190,7 +195,7 @@ class CsvTimeSeries:
                 dtype=np.float32
             )
             past = torch.as_tensor(
-                values.T[None, :, :].copy(),
+                rearrange(values, "time channel -> 1 channel time").copy(),
                 dtype=torch.float32,
                 device=device,
             )
@@ -199,7 +204,7 @@ class CsvTimeSeries:
                 start + lags : start + lags + horizon
             ].to_numpy(dtype=np.float32)
             future = torch.as_tensor(
-                values.T[None, :, :].copy(),
+                rearrange(values, "time channel -> 1 channel time").copy(),
                 dtype=torch.float32,
                 device=device,
             )

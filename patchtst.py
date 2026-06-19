@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
+from einops import pack, rearrange, repeat
 
 
 class Transpose(nn.Module):
@@ -17,9 +18,10 @@ class Transpose(nn.Module):
         self.dims, self.contiguous = dims, contiguous
 
     def forward(self, x):
-        if self.contiguous:
-            return x.transpose(*self.dims).contiguous()
-        return x.transpose(*self.dims)
+        if self.dims != (1, 2):
+            raise ValueError("Transpose only supports dims=(1, 2) in this package")
+        out = rearrange(x, "batch time dim -> batch dim time")
+        return out.contiguous() if self.contiguous else out
 
 
 def get_activation_fn(activation):
@@ -41,11 +43,12 @@ class moving_avg(nn.Module):
         self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
 
     def forward(self, x):
-        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
-        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
-        x = torch.cat([front, x, end], dim=1)
-        x = self.avg(x.permute(0, 2, 1))
-        return x.permute(0, 2, 1)
+        pad = (self.kernel_size - 1) // 2
+        front = repeat(x[:, 0, :], "batch dim -> batch pad dim", pad=pad)
+        end = repeat(x[:, -1, :], "batch dim -> batch pad dim", pad=pad)
+        x, _ = pack([front, x, end], "batch * dim")
+        x = self.avg(rearrange(x, "batch time dim -> batch dim time"))
+        return rearrange(x, "batch dim time -> batch time dim")
 
 
 class series_decomp(nn.Module):
@@ -63,7 +66,7 @@ class series_decomp(nn.Module):
 
 def PositionalEncoding(q_len, d_model, normalize=True):
     pe = torch.zeros(q_len, d_model)
-    position = torch.arange(0, q_len).unsqueeze(1)
+    position = rearrange(torch.arange(0, q_len), "q -> q 1")
     div_term = torch.exp(torch.arange(0, d_model, 2) * -(math.log(10000.0) / d_model))
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
@@ -82,8 +85,8 @@ def Coord2dPosEncoding(q_len, d_model, exponential=False, normalize=True, eps=1e
     for _ in range(100):
         cpe = (
             2
-            * (torch.linspace(0, 1, q_len).reshape(-1, 1) ** x)
-            * (torch.linspace(0, 1, d_model).reshape(1, -1) ** x)
+            * (rearrange(torch.linspace(0, 1, q_len), "q -> q 1") ** x)
+            * (rearrange(torch.linspace(0, 1, d_model), "d -> 1 d") ** x)
             - 1
         )
         if abs(cpe.mean()) <= eps:
@@ -99,7 +102,9 @@ def Coord2dPosEncoding(q_len, d_model, exponential=False, normalize=True, eps=1e
 
 
 def Coord1dPosEncoding(q_len, exponential=False, normalize=True):
-    cpe = 2 * (torch.linspace(0, 1, q_len).reshape(-1, 1) ** (0.5 if exponential else 1)) - 1
+    cpe = 2 * (
+        rearrange(torch.linspace(0, 1, q_len), "q -> q 1") ** (0.5 if exponential else 1)
+    ) - 1
     if normalize:
         cpe = cpe - cpe.mean()
         cpe = cpe / (cpe.std() * 10)
@@ -227,7 +232,7 @@ class PatchTST_backbone(nn.Module):
         if self.padding_patch == "end":
             z = self.padding_patch_layer(z)
         z = z.unfold(dimension=-1, size=self.patch_len, step=self.stride)
-        z = z.permute(0, 1, 3, 2)
+        z = rearrange(z, "batch vars patch_num patch_len -> batch vars patch_len patch_num")
 
         z = self.backbone(z)
         return self.head(z)
@@ -245,13 +250,10 @@ class Flatten_Head(nn.Module):
         if self.individual:
             self.linears = nn.ModuleList()
             self.dropouts = nn.ModuleList()
-            self.flattens = nn.ModuleList()
             for _ in range(self.n_vars):
-                self.flattens.append(nn.Flatten(start_dim=-2))
                 self.linears.append(nn.Linear(nf, target_window))
                 self.dropouts.append(nn.Dropout(head_dropout))
         else:
-            self.flatten = nn.Flatten(start_dim=-2)
             self.linear = nn.Linear(nf, target_window)
             self.dropout = nn.Dropout(head_dropout)
 
@@ -259,13 +261,13 @@ class Flatten_Head(nn.Module):
         if self.individual:
             x_out = []
             for i in range(self.n_vars):
-                z = self.flattens[i](x[:, i, :, :])
+                z = rearrange(x[:, i, :, :], "batch dim patch -> batch (dim patch)")
                 z = self.linears[i](z)
                 z = self.dropouts[i](z)
                 x_out.append(z)
-            x = torch.stack(x_out, dim=1)
+            x = rearrange(x_out, "vars batch horizon -> batch vars horizon")
         else:
-            x = self.flatten(x)
+            x = rearrange(x, "batch vars dim patch -> batch vars (dim patch)")
             x = self.linear(x)
             x = self.dropout(x)
         return x
@@ -331,15 +333,15 @@ class TSTiEncoder(nn.Module):
 
     def forward(self, x) -> Tensor:
         n_vars = x.shape[1]
-        x = x.permute(0, 1, 3, 2)
+        x = rearrange(x, "batch vars patch_len patch_num -> batch vars patch_num patch_len")
         x = self.W_P(x)
 
-        u = torch.reshape(x, (x.shape[0] * x.shape[1], x.shape[2], x.shape[3]))
+        u = rearrange(x, "batch vars patch dim -> (batch vars) patch dim")
         u = self.dropout(u + self.W_pos)
 
         z = self.encoder(u)
-        z = torch.reshape(z, (-1, n_vars, z.shape[-2], z.shape[-1]))
-        return z.permute(0, 1, 3, 2)
+        z = rearrange(z, "(batch vars) patch dim -> batch vars patch dim", vars=n_vars)
+        return rearrange(z, "batch vars patch dim -> batch vars dim patch")
 
 
 class TSTEncoder(nn.Module):
@@ -533,9 +535,21 @@ class _MultiheadAttention(nn.Module):
         if V is None:
             V = Q
 
-        q_s = self.W_Q(Q).view(bs, -1, self.n_heads, self.d_k).transpose(1, 2)
-        k_s = self.W_K(K).view(bs, -1, self.n_heads, self.d_k).permute(0, 2, 3, 1)
-        v_s = self.W_V(V).view(bs, -1, self.n_heads, self.d_v).transpose(1, 2)
+        q_s = rearrange(
+            self.W_Q(Q),
+            "batch seq (heads dim) -> batch heads seq dim",
+            heads=self.n_heads,
+        )
+        k_s = rearrange(
+            self.W_K(K),
+            "batch seq (heads dim) -> batch heads dim seq",
+            heads=self.n_heads,
+        )
+        v_s = rearrange(
+            self.W_V(V),
+            "batch seq (heads dim) -> batch heads seq dim",
+            heads=self.n_heads,
+        )
 
         if self.res_attention:
             output, attn_weights, attn_scores = self.sdp_attn(
@@ -549,7 +563,7 @@ class _MultiheadAttention(nn.Module):
         else:
             output, attn_weights = self.sdp_attn(q_s, k_s, v_s, key_padding_mask=key_padding_mask, attn_mask=attn_mask)
 
-        output = output.transpose(1, 2).contiguous().view(bs, -1, self.n_heads * self.d_v)
+        output = rearrange(output, "batch heads seq dim -> batch seq (heads dim)")
         output = self.to_out(output)
 
         if self.res_attention:
@@ -587,7 +601,8 @@ class _ScaledDotProductAttention(nn.Module):
                 attn_scores += attn_mask
 
         if key_padding_mask is not None:
-            attn_scores.masked_fill_(key_padding_mask.unsqueeze(1).unsqueeze(2), -np.inf)
+            mask = rearrange(key_padding_mask, "batch seq -> batch 1 1 seq")
+            attn_scores.masked_fill_(mask, -np.inf)
 
         attn_weights = F.softmax(attn_scores, dim=-1)
         attn_weights = self.attn_dropout(attn_weights)
@@ -705,8 +720,8 @@ class PatchTST(nn.Module):
         if self.model.padding_patch == "end":
             z = self.model.padding_patch_layer(z)
         z = z.unfold(dimension=-1, size=self.model.patch_len, step=self.model.stride)
-        z = z.permute(0, 1, 3, 2)
+        z = rearrange(z, "batch vars patch_num patch_len -> batch vars patch_len patch_num")
         encoded = self.model.backbone(z)
         if pool:
             return encoded.mean(dim=(-1, -2))
-        return encoded.flatten(start_dim=1)
+        return rearrange(encoded, "batch ... -> batch (...)")

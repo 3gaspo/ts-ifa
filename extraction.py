@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from einops import rearrange
 
 try:
     from .load_dataset_model import (
@@ -27,10 +28,7 @@ try:
     )
     from .visu import plot_series
 except ImportError:  # pragma: no cover - direct script execution
-    import sys
-
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from extraction.load_dataset_model import (
+    from load_dataset_model import (
         load_csv_dataset,
         load_json_kwargs,
         load_pretrained_model,
@@ -39,13 +37,13 @@ except ImportError:  # pragma: no cover - direct script execution
         set_seed,
         split_bounds,
     )
-    from extraction.neighbors import (
+    from neighbors import (
         aligned_store_dates,
         build_window_batch,
         period_eval_dates,
         search_neighbors,
     )
-    from extraction.visu import plot_series
+    from visu import plot_series
 
 
 def _empty_neighbor_tensors(
@@ -82,12 +80,13 @@ def _predict(
     past_covariates: torch.Tensor | None,
     future_covariates: torch.Tensor | None,
 ) -> torch.Tensor:
-    return model(
+    prediction = model(
         x,
         context=context,
         past_covariates=past_covariates,
         future_covariates=future_covariates,
-    ).detach().cpu().squeeze(1)
+    ).detach().cpu()
+    return rearrange(prediction, "user 1 horizon -> user horizon")
 
 
 def extract_period(
@@ -111,6 +110,11 @@ def extract_period(
     preds = torch.empty((n_eval, n_users, horizon), dtype=torch.float32)
     preds_context = torch.empty_like(preds)
     e_values = torch.empty((n_eval, n_users, k, horizon), dtype=torch.float32)
+    ec_values = (
+        torch.empty((n_eval, n_users, k, horizon), dtype=torch.float32)
+        if args.compute_ec
+        else None
+    )
     x_values = torch.empty((n_eval, n_users, lags), dtype=torch.float32)
     xc_values = torch.empty((n_eval, n_users, k, lags), dtype=torch.float32)
     y_values = torch.empty((n_eval, n_users, horizon), dtype=torch.float32)
@@ -138,7 +142,7 @@ def extract_period(
             normalize=not args.no_feature_normalization,
             pool_representation=args.pool_representation,
         )
-        x = query.windows[:, :lags].unsqueeze(1).to(device)
+        x = rearrange(query.windows[:, :lags], "user lags -> user 1 lags").to(device)
         y = query.windows[:, lags:]
         past_cov, future_cov = dataset.covariate_tensors(t, lags, horizon, device=device)
         pred = _predict(
@@ -149,11 +153,14 @@ def extract_period(
             future_covariates=future_cov,
         )
 
-        x_values[i] = x.detach().cpu().squeeze(1)
+        x_values[i] = rearrange(x.detach().cpu(), "user 1 lags -> user lags")
         y_values[i] = y
         preds[i] = pred
-        mu_x[i] = x.detach().cpu().mean(dim=-1).squeeze(1)
-        sigma_x[i] = x.detach().cpu().std(dim=-1, unbiased=False).squeeze(1)
+        mu_x[i] = rearrange(x.detach().cpu().mean(dim=-1), "user 1 -> user")
+        sigma_x[i] = rearrange(
+            x.detach().cpu().std(dim=-1, unbiased=False),
+            "user 1 -> user",
+        )
         query_t[i] = t
         query_user_idx[i] = torch.arange(n_users, dtype=torch.long)
 
@@ -161,6 +168,8 @@ def extract_period(
             empty = _empty_neighbor_tensors(n_users, k, lags, horizon)
             preds_context[i] = pred
             e_values[i] = empty["E"]
+            if ec_values is not None:
+                ec_values[i] = empty["E"]
             xc_values[i] = empty["Xc"]
             yc_values[i] = empty["Yc"]
             mu_xc[i] = empty["mu_xc"]
@@ -213,9 +222,34 @@ def extract_period(
             future_covariates=future_cov,
         )
 
-        x_c_flat = x_c.reshape(-1, lags).unsqueeze(1).to(device)
-        pred_neighbors = model(x_c_flat).detach().cpu().squeeze(1)
-        pred_neighbors = pred_neighbors.reshape(n_users, k, horizon)
+        x_c_flat = rearrange(x_c, "user neighbor lags -> (user neighbor) 1 lags").to(device)
+        pred_neighbors = rearrange(
+            model(x_c_flat).detach().cpu(),
+            "(user neighbor) 1 horizon -> user neighbor horizon",
+            user=n_users,
+            neighbor=k,
+        )
+        if ec_values is not None:
+            if k > 1:
+                pred_neighbors_context = torch.empty_like(pred_neighbors)
+                for neighbor_idx in range(k):
+                    mask = torch.ones(k, dtype=torch.bool)
+                    mask[neighbor_idx] = False
+                    neighbor_context_pred = (
+                        model(
+                            x_c[:, neighbor_idx : neighbor_idx + 1, :].to(device),
+                            context=xy_c[:, mask, :].to(device),
+                        )
+                        .detach()
+                        .cpu()
+                    )
+                    pred_neighbors_context[:, neighbor_idx] = rearrange(
+                        neighbor_context_pred,
+                        "user 1 horizon -> user horizon",
+                    )
+            else:
+                pred_neighbors_context = pred_neighbors.clone()
+            ec_values[i] = y_c - pred_neighbors_context
         neighbor_users, neighbor_dates = store.decode_indices(indices)
 
         preds_context[i] = pred_context
@@ -248,6 +282,8 @@ def extract_period(
         f"{prefix}_neighbor_user_idx": neighbor_user_idx,
         f"{prefix}_retrieval_period": torch.tensor(args.period, dtype=torch.long),
     }
+    if ec_values is not None:
+        prediction_payload[f"{prefix}_Ec_values"] = ec_values
     if k > 0:
         features_payload = {
             f"{prefix}_mu_x": mu_x,
@@ -258,10 +294,20 @@ def extract_period(
             f"{prefix}_sigma_xc_std": sigma_xc.std(dim=-1, unbiased=False),
             f"{prefix}_loss_pred_pred_c": (preds - preds_context).pow(2).mean(dim=-1),
             f"{prefix}_loss_pred_yc_mean": (
-                (preds.unsqueeze(2) - yc_values).pow(2).mean(dim=-1).mean(dim=-1)
+                (
+                    rearrange(preds, "date user horizon -> date user 1 horizon")
+                    - yc_values
+                )
+                .pow(2)
+                .mean(dim=-1)
+                .mean(dim=-1)
             ),
             f"{prefix}_loss_neighbor_residual_mean": e_values.pow(2).mean(dim=-1).mean(dim=-1),
         }
+        if ec_values is not None:
+            features_payload[f"{prefix}_loss_neighbor_context_residual_mean"] = (
+                ec_values.pow(2).mean(dim=-1).mean(dim=-1)
+            )
     else:
         features_payload = {
             f"{prefix}_mu_x": mu_x,
@@ -380,6 +426,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-align-period", action="store_true")
     parser.add_argument("--no-feature-normalization", action="store_true")
     parser.add_argument("--pool-representation", action="store_true")
+    parser.add_argument("--compute-ec", action="store_true", help="Also save neighbor-context residuals Ec")
     parser.add_argument("--search-chunk-size", type=int, default=512)
     parser.add_argument("--output-dir", default="outputs/extraction_neighbors")
     parser.add_argument("--save-name", default="neighbors")

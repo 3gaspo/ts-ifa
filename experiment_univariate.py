@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
+from einops import rearrange
 
 try:
     from .load_dataset_model import (
@@ -29,10 +30,7 @@ try:
         plot_user_error_scatter,
     )
 except ImportError:  # pragma: no cover - direct script execution
-    import sys
-
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from extraction.load_dataset_model import (
+    from load_dataset_model import (
         load_csv_dataset,
         load_json_kwargs,
         load_pretrained_model,
@@ -41,8 +39,8 @@ except ImportError:  # pragma: no cover - direct script execution
         set_seed,
         split_bounds,
     )
-    from extraction.neighbors import period_eval_dates
-    from extraction.visu import (
+    from neighbors import period_eval_dates
+    from visu import (
         plot_error_distribution,
         plot_horizon_errors,
         plot_prediction_example,
@@ -108,7 +106,9 @@ def evaluate_split(
                 )
     payload = {
         "dates": torch.as_tensor(dates, dtype=torch.long),
-        "horizon_mse": torch.stack(horizon_losses, dim=0) if horizon_losses else torch.empty(0),
+        "horizon_mse": rearrange(horizon_losses, "batch user horizon -> batch user horizon")
+        if horizon_losses
+        else torch.empty(0),
         "example": first_payload,
     }
     return pd.DataFrame(rows), payload

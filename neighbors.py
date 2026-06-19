@@ -7,8 +7,12 @@ from typing import Literal
 
 import numpy as np
 import torch
+from einops import rearrange
 
-from .load_dataset_model import CsvTimeSeries
+try:
+    from .load_dataset_model import CsvTimeSeries
+except ImportError:  # pragma: no cover - direct script execution
+    from load_dataset_model import CsvTimeSeries
 
 DistanceMetric = Literal["euclidean", "cosine", "pearson"]
 
@@ -157,7 +161,7 @@ def build_window_batch(
 
     value_indices = start_dates[:, None] + np.arange(int(lags) + int(horizon))
     raw = dataset.values[value_indices]  # (dates, lags+horizon, users)
-    windows = raw.transpose(2, 0, 1).reshape(-1, int(lags) + int(horizon))
+    windows = rearrange(raw, "date time user -> (user date) time")
     lookbacks = windows[:, : int(lags)]
     feature_source = normalize_windows(lookbacks) if normalize else lookbacks.astype(np.float32)
 
@@ -169,7 +173,11 @@ def build_window_batch(
             raise ValueError(f"distance_space={distance_space!r} requires a model")
         if not hasattr(model, "representation"):
             raise AttributeError("model does not expose representation()")
-        x = torch.as_tensor(feature_source, dtype=torch.float32, device=device).unsqueeze(1)
+        x = torch.as_tensor(
+            rearrange(feature_source, "sample time -> sample 1 time"),
+            dtype=torch.float32,
+            device=device,
+        )
         with torch.inference_mode():
             reps = model.representation(x, pool=pool_representation)
         features = reps.detach().cpu().numpy().astype(np.float32)
@@ -241,10 +249,11 @@ def search_neighbors(
         q = query[start:stop]
         if metric == "euclidean":
             q2 = (q * q).sum(axis=1, keepdims=True)
-            s2 = (store * store).sum(axis=1, keepdims=True).T
-            distances = np.sqrt(np.maximum(q2 + s2 - 2.0 * q @ store.T, 0.0))
+            s2 = rearrange((store * store).sum(axis=1, keepdims=True), "store 1 -> 1 store")
+            store_t = rearrange(store, "store dim -> dim store")
+            distances = np.sqrt(np.maximum(q2 + s2 - 2.0 * q @ store_t, 0.0))
         else:
-            distances = 1.0 - q @ store.T
+            distances = 1.0 - q @ rearrange(store, "store dim -> dim store")
         top = np.argpartition(distances, kth=k - 1, axis=1)[:, :k]
         top_dist = np.take_along_axis(distances, top, axis=1)
         order = np.argsort(top_dist, axis=1)

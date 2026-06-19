@@ -1,0 +1,345 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{mathtools}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc}
+
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.7em}
+
+\title{\vspace{-1em}
+Retrieval-based Residual Adaptation
+\vspace{-0.5em}}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+
+\section*{Setting}
+
+We consider a pretrained forecasting model with an encoder $g$ and forecasting head $h$
+\[
+f(x)=h(g(x)),
+\]
+where $x\in\mathbb{R}^L$ is a lookback window and $y\in\mathbb{R}^H$ is the future horizon. The vanilla prediction is
+\[
+\hat y = f(x)\in\mathbb{R}^H.
+\]
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{pretrained model.png}
+    \caption{Illustration of a pretrained model with an encoder and forecasting head.}
+    \label{fig:placeholder}
+\end{figure}
+
+We assume the pretrained model can take optional covariates as inputs, provided as $N$ additional windows, over both lookback and horizon:
+\[\hat{y}_c=f(x,Z_c), \qquad Z_c \in \mathbb{R}^{N\times (L+H)}.\]
+
+Our goal is to improve the vanilla prediction $\hat{y}$, using information from ``neighboring" windows. We propose an adapter module which remains lightweight and interpretable. 
+
+\section*{Sampling neighbors}
+
+At inference, we fetch a \textit{datastore} composed of past windows aligned with $x$. These windows come from the current user as well as other accessible users. We may fix a maximum number of windows, a stride, upper and lower bound for the dates, and a frequency to align windows. For example, we may constrain our search to geographically neighboring users, using data from last year, with windows starting at the same hour of the day at the current input.
+
+Using the pretrained model's encoder, we build representations $\phi_x=g(x)$ for each window. For a given $x$, a $k$-NN model retrieves $K$ example past windows
+\[
+\mathcal{N}(x)=\{(x_k,y_k)\}_{k=1}^K, \qquad x_k \in \mathbb{R}^L, y_k \in \mathbb{R}^H
+\]
+ordered by increasing distance
+\[
+d_k = \|\phi_x -\phi_{x_k}\|_2.
+\]
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{neighbors.png}
+    \caption{Example windows retrieval pipeline.}
+    \label{fig:placeholder}
+\end{figure}
+
+\newpage
+For each input $x$, we store in memory:
+\begin{itemize}
+    \item Input's lookback $\quad x \in \mathbb{R}^{L}$
+    \item Examples' lookbacks $\quad X_c = (x_k)_{k=1}^K \in \mathbb{R}^{K \times L}$
+    \item Examples' horizons $Y_c = (y_k)_{k=1}^K\in \mathbb{R}^{K\times H}$
+\end{itemize}
+
+
+\section*{Extracting additional information from examples}
+
+Using the examples, $K+1$ additional predictions can be computed:
+\begin{itemize}
+    \item Example-conditioned prediction  $\hat y^{c}=f(x,\mathcal{N}(x)) \in \mathbb{R}^H$
+    \item Examples' univariate predictions $\hat{Y}_c=(\hat y_k)_{k=1}^K=(f(x_k))_{k=1}^K\in \mathbb{R}^{K\times H}$
+\end{itemize}
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{predictions.png}
+    \caption{Example-conditioned prediction and examples' univariate predictions.}
+    \label{fig:placeholder}
+\end{figure}
+
+\newpage
+
+\section*{Baseline adapters}
+
+Empirical experiments have shown that using $\hat{y}^c$ instead of $\hat{y}$ with current foundation models does not consistently improve performance. In fact, it may degrade it on average.
+
+Yet, various naive baselines can be thought-of to improve $\hat{y}$ using $\hat{y}^c$ and $Y_c$:
+
+\begin{itemize}
+    \item Weighted mixture of horizons: 
+    $\hat{y}_{mix_0}=(1-\lambda)\hat{y}+\lambda\sum_{k=1}^K w_k y_k, \qquad w_k=\frac{\exp(-d_k)}{\sum_{j=1}^K \exp(-d_j)}$ 
+    
+    \item Learned mixture of horizons
+    $\hat{y}_{mix_1}=\hat{y}+a_0\hat{y}+\sum_{k=1}^K a_k y_k$
+    \item Full mixture
+    $\forall h\in \{1,\dots,H\},\,
+    \hat{y}_{mix_2,h}=\hat{y}_h+a_{0,h}\hat{y}_h+
+    \sum_{k=1}^K a_{k,h} y_{k,h} + b_h \hat{y}^c_{h}$
+    \item Scalar gated context-conditioned forecast, with one decision per window:
+    \[
+    s=\sigma_{\mathrm{scalar}}\!\left(x,\mathcal{N}(x),\hat y,\hat y^c\right)\in\{0,1\},
+    \qquad
+    \hat y_{\mathrm{gate\text{-}s}}=(1-s)\hat y+s\hat y^c.
+    \]
+    \item Horizon-wise gated context-conditioned forecast, with one decision per window and horizon:
+    \[
+    s_h=\sigma_h\!\left(x,\mathcal{N}(x),\hat y,\hat y^c\right)\in\{0,1\},
+    \qquad
+    \hat y_{\mathrm{gate\text{-}h},h}=(1-s_h)\hat y_h+s_h\hat y^c_h.
+    \]
+\end{itemize}
+
+The linear adapters are fitted on residual labels $y-\hat y$. Thus $a=0$
+recovers the vanilla forecast, and an $\ell_2$ penalty keeps the learned
+correction small. The coefficients may be obtained by regularized closed-form
+least squares. The functions $\sigma_{\mathrm{scalar}}$ and
+$\{\sigma_h\}_{h=1}^H$ are learned binary gates using only information
+available at inference.
+
+\section*{Our proposed model: Adaptive Retrieval-Augmented \& Residual Mixture (ARARM)}
+
+Using the various data and additional prediction we have computed, we now have access to complementary sources of information:
+\begin{itemize}
+    \item The vanilla prediction $\hat{y}$
+    \item The context-conditioned prediction $\hat{y}^c \in \mathbb{R}^H$
+    \item Local errors by the model $R_c = Y_c-\hat Y_c \in \mathbb{R}^{K\times H}$
+    \item Ground-truth horizons from similar examples $Y_c \in \mathbb{R}^{K\times H}$ 
+\end{itemize}
+
+We also define joint input-prediction representations
+\[
+m=[x,\hat y]\in\mathbb{R}^{L+H},
+\qquad
+M_c=[X_c,\hat Y_c]\in\mathbb{R}^{K\times(L+H)}.
+\]
+
+Our goal is to efficiently mix those sources of information to produce a new prediction $y_{final}$ which performs better than vanilla $\hat{y}$. Moreover, we want the adapter to remain lightweight and interpretable.
+
+We will use cross-attention layers, defined as
+\[
+\operatorname{Attn}(Q,K,V)
+=
+\operatorname{softmax}
+\left(
+\frac{(QW_Q)(KW_K)^T}{\sqrt d}
+\right)
+VW_V,
+\]
+
+across two deep layers to produce a total of four \textit{adaptative} (i.e. context-informed) predictions $\hat{y}, \hat{y}^c, y_r, y_m$, which will be merged by a final mixing network.
+
+\newpage
+\textbf{Residual correction branch}
+
+This branch compares $[x,\hat y]$ with example windows $[x_k,\hat y_k]$, to merge associated residuals $y_k-\hat y_k$ into $Z_r$ which estimates how the pretrained model was wrong in similar states.
+\[
+z_r=\operatorname{Attn}(m,M_c,R_c)\in\mathbb{R}^{1\times H},
+\]
+\[
+y_r=\hat y+\operatorname{MLP}(Z_r) \in\mathbb{R}^{1\times H}
+\]
+
+\textbf{Memory branch}
+
+This branch compares $x$ with the retrieved lookbacks $x_k$ and returns a learned weighted average of their realized horizons $y_k$.
+\[
+z_{m}=\operatorname{Attn}(x,X_c,Y_c)\in\mathbb{R}^{1\times H},
+\]
+\[
+y_m=\operatorname{MLP}([\hat y,Z_{m}]) \in \mathbb{R}^{1\times H}
+\]
+
+\textbf{Final mixture}
+
+A final attention layer outputs final mixture.
+\[z_x = \operatorname{MLP}(m) \in \mathbb{R}^{d}\]
+\[\tilde{Y}= [\hat{y}, \hat{y}^c, y_r, y_m]\in \mathbb{R}^{4\times H}\]
+\[Z_y = \operatorname{MLP}(\tilde{Y}) \in \mathbb{R}^{4\times d} \]
+\[\hat{y}_{adapt} = \operatorname{Attn}(z_x, Z_y, \tilde{Y}) \in \mathbb{R}^{1\times H}\]
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{pipeline.png}
+
+
+    \caption{Illustration of the proposed pipeline.}
+    \label{fig:placeholder}
+\end{figure}
+
+\textbf{Parameter count}
+
+The residual and memory attention branches respectively contain
+\[
+P_r^{\mathrm{attn}}
+=
+h_r\left[2(L+H)d_r+2H^2\right], \qquad
+P_m^{\mathrm{attn}}
+=
+h_m\left[2Ld_m+2H^2\right].
+\]
+
+With hidden widths $s_r,s_m$, their prediction heads contain
+\[
+P_r^{\mathrm{head}}=Hs_r+s_r+s_rH+H,
+\qquad
+P_m^{\mathrm{head}}=Hs_y+s_y+s_yH+H.
+\]
+
+The final mixture contains
+\[
+P_{\mathrm{mix}}
+= [(L+H)s_x+s_x+s_xd+d] + [4Hs_y+s_y+4ds_y+4d]+[2dd_f+4H^2].
+\]
+Hence, the total number of trainable parameters is
+\[
+\boxed{O\big((h_rd_r+h_md_m)L+(h_r+h_m)H^2+s_xL+(s_x+s_y)H+(s_x+s_y+d_f)d+H^2\big)
+}.
+\]
+
+% Let $d_r,d_m$ be the attention dimensions and $h_r,h_m$ the number of heads for the residual and memory branches. The attention parameters scale as
+% \[
+% O\left(
+% h_r(2(L+H)d_r+Hd_r)
+% +
+% h_m(2Ld_m+Hd_m)
+% \right).
+% \]
+% The heads $g_r,g_m$ map horizon-sized representations back to $\mathbb{R}^H$, while $g_{\operatorname{mix}}$ is chosen much smaller since it only combines four candidate forecasts.
+
+
+
+\section{Training}
+
+For each training window $x$, we:
+\begin{itemize}
+    \item compute the vanilla prediction $\hat y=f(x)$;
+    \item retrieve $K$ neighbors $\mathcal{N}(x)=\{(x_k,y_k)\}_{k=1}^K$;
+    \item compute the conditioned prediction $\hat y^c=f(x,\mathcal{N}(x))$;
+    \item compute examples' predictions $\hat Y_c=(f(x_k))_{k=1}^K$;
+    \item build residuals $R_c=Y_c-\hat Y_c$;
+    \item train the adapter (one step update) to predict $y$ from $\hat{y}_{adapt}=f(x,\hat y,\hat y^c,X_c,Y_c,\hat Y_c,R_c)$.
+\end{itemize}
+
+The main loss is
+\[
+\mathcal{L}_{pred}
+=
+\|y-\hat y_{\operatorname{adapt}}\|_2^2.
+\]
+
+To keep the adapter conservative, we regularize deviations from the vanilla prediction:
+\[
+\mathcal{L}_{reg}
+=
+\|\hat y_{\operatorname{adapt}}-\hat y\|_2^2.
+\]
+
+Optionally, we add residual supervision:
+\[
+\mathcal{L}_{r}
+=
+\|(y-\hat y)-g_r(Z_r)\|_2^2,
+\]
+then the full loss is
+\[
+\mathcal{L}
+=
+\mathcal{L}_{pred}
++
+\beta \mathcal{L}_{reg}
++
+\gamma \mathcal{L}_{r}.
+\]
+
+\section*{Other RAG-based models}
+
+- Convex mixture of $\hat{y}$ and $\sum w_k y_k$\\
+\textbf{kNN-MT} (ICLR 2021), (pFL through \textbf{Local Memorization}, ICML 2022, 175 cit.)
+
+- Concatenate $X$ to $x$ and fine-tune\\
+(\textbf{RAF} AISTAT 2026, 34 cit.), (\textbf{In-context fine-tuning}, ICML 2025, 30 cit.)
+
+- Fuse $\phi_x$ and $\Phi_X$ in a latent space, to feed to the pretrained decoder\\
+(\textbf{TimeRAF}, 2024, 31 cit.), (\textbf{RAFT}, ICML 2025 33 cit.), (\textbf{TS-RAG}, Neurips 2025, 45 cit.)\\
+(\textbf{Cross-RAG}, ICML 2026, 2 cit.)
+
+I have not found 
+
+\section*{Other residual learning models}
+
+\textbf{Enhancing Transformer-Based Foundation Models} (2025, 2 cit.) mentions residual learning via another model.
+
+\textbf{Causality-Inspired Residual Correction} (2026, 1 cit.): want to avoid overfitting random noise ("safe learning"), causal encoder + mixture of linear and non linear residuals with validation gating (and proofs of guarantees).
+
+\textbf{Universal Error Corrector with Seasonal–Trend Decomposition} (2026) learn a trend and seasonal residual
+
+\textbf{Context-aware output-space adapter} (ICLR 2026, 2 cit.) linear residual function of input and past statistics.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{llllllll}
+\toprule
+\textbf{Model} & \textbf{Authors} & \textbf{Fusing} & \textbf{Weights} & \textbf{Residuals} & \textbf{Covariates} & \textbf{Forwards} & \textbf{Params} \\
+\midrule
+Horizon mix & -- & Output & Fixed+learned & $\times$ & $\times$ & 1 & 1 \\
+Learned mix & -- & Output & Learned & $\times$ & $\times$ & 1 & $K+1$ \\
+Full mix & -- & Output & Learned & $\times$ & \checkmark & 2 & $(K+2)H$ \\
+Scalar gate & -- & Output & Decision & $\times$ & \checkmark & $2+K$ & $P_{\sigma}$ \\
+Horizon gate & -- & Output & Decision & $\times$ & \checkmark & $2+K$ & $HP_{\sigma}$ \\
+\midrule
+TimeRAG   & Yang et al. 2024  & Input  & -- &$\times$ & $\times$ & 1 & -- \\
+ICFT & Das et al. 2024 & Input & -- & $\times$ & $\times$ & 1 & -- \\
+% RATD      & Liu et al. 2024   & Latent &  & --       & $T{+}1$ &  \\
+TimeRAF   & Zhang et al. 2024 & Input & -- & $\times$  & $\times$ & 1 & -- \\
+RAFT & Han et al. 2025 & Output & Fixed & $\times$ & $\times$ & 1 & -- \\
+TS-RAG    & Ning et al. 2025  & Latent & Self-Attn & $\times$ & $\times$ & 1 & -- \\
+Cross-RAG & Lee et al. 2026   & Latent & Cross-Attn & $\times$ & $\times$ & 1 & -- \\
+RAF & Tire et al. 2026 & Input & -- & $\times$ & $\times$ & 1 & -- \\
+ARARM & Ours & Output & Cross-Attn & \checkmark & \checkmark & $2+K$ & $P_r+P_m+P_{\mathrm{mix}}$ \\
+\bottomrule
+\end{tabular}
+\caption{Concise comparison of retrieval-augmented time-series forecasting models.}
+\label{tab:rag_tsf_models}
+\end{table*}
+
+Here $P_{\sigma}$ denotes the parameter count of one binary gate. The gate
+forward count includes the vanilla prediction, the context-conditioned
+prediction, and the $K$ neighbor predictions used by residual-based gate
+features. A gate restricted to $x$, $X_c$, $Y_c$, $\hat y$, and $\hat y^c$
+would require only two pretrained-model forwards.
+
+\end{document}

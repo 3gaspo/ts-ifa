@@ -9,14 +9,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
+from einops import rearrange, repeat
 
 try:
     from .visu import plot_feature_scatter
 except ImportError:  # pragma: no cover - direct script execution
-    import sys
-
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from extraction.visu import plot_feature_scatter
+    from visu import plot_feature_scatter
 
 
 def _to_numpy(value: Any) -> np.ndarray:
@@ -26,7 +24,7 @@ def _to_numpy(value: Any) -> np.ndarray:
 
 
 def _flat(value: Any) -> np.ndarray:
-    return _to_numpy(value).reshape(-1)
+    return rearrange(_to_numpy(value), "... -> (...)")
 
 
 def mse_by_window(prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -38,8 +36,8 @@ def _optional_mean(payload: dict[str, Any], key: str) -> np.ndarray | None:
         return None
     arr = _to_numpy(payload[key])
     if arr.ndim >= 3:
-        return arr.mean(axis=tuple(range(2, arr.ndim))).reshape(-1)
-    return arr.reshape(-1)
+        return rearrange(arr.mean(axis=tuple(range(2, arr.ndim))), "... -> (...)")
+    return rearrange(arr, "... -> (...)")
 
 
 def _optional_std(payload: dict[str, Any], key: str) -> np.ndarray | None:
@@ -47,8 +45,8 @@ def _optional_std(payload: dict[str, Any], key: str) -> np.ndarray | None:
         return None
     arr = _to_numpy(payload[key])
     if arr.ndim >= 3:
-        return arr.std(axis=tuple(range(2, arr.ndim))).reshape(-1)
-    return np.zeros(arr.reshape(-1).shape, dtype=np.float32)
+        return rearrange(arr.std(axis=tuple(range(2, arr.ndim))), "... -> (...)")
+    return np.zeros(rearrange(arr, "... -> (...)").shape, dtype=np.float32)
 
 
 def compute_split_features(
@@ -78,9 +76,9 @@ def compute_split_features(
     frame = pd.DataFrame(
         {
             "split": prefix,
-            "date_index": np.repeat(dates, n_users),
-            "datetime": np.repeat(np.asarray(datetimes, dtype=object), n_users),
-            "user_idx": np.tile(np.arange(n_users), n_eval),
+            "date_index": repeat(dates, "date -> (date user)", user=n_users),
+            "datetime": repeat(np.asarray(datetimes, dtype=object), "date -> (date user)", user=n_users),
+            "user_idx": repeat(np.arange(n_users), "user -> (date user)", date=n_eval),
             "base_loss": _flat(base_loss),
             "context_loss": _flat(context_loss),
             "oracle_loss": _flat(oracle_loss),
@@ -98,17 +96,20 @@ def compute_split_features(
 
     neighbor_user = prediction_payload.get(f"{prefix}_neighbor_user_idx")
     if neighbor_user is not None:
-        users = np.tile(np.arange(n_users).reshape(1, n_users, 1), (n_eval, 1, 1))
+        users = repeat(np.arange(n_users), "user -> date user 1", date=n_eval)
         neighbor_arr = _to_numpy(neighbor_user)
         if neighbor_arr.shape[-1] > 0:
-            frame["same_user_neighbor_frac"] = (neighbor_arr == users).mean(axis=-1).reshape(-1)
+            frame["same_user_neighbor_frac"] = rearrange(
+                (neighbor_arr == users).mean(axis=-1),
+                "... -> (...)",
+            )
 
     neighbor_t = prediction_payload.get(f"{prefix}_neighbor_t")
     query_t = prediction_payload.get(f"{prefix}_query_t")
     if neighbor_t is not None and query_t is not None and _to_numpy(neighbor_t).shape[-1] > 0:
-        delta = _to_numpy(query_t)[:, :, None] - _to_numpy(neighbor_t)
-        frame["neighbor_delta_mean"] = delta.mean(axis=-1).reshape(-1)
-        frame["neighbor_delta_std"] = delta.std(axis=-1).reshape(-1)
+        delta = rearrange(_to_numpy(query_t), "date user -> date user 1") - _to_numpy(neighbor_t)
+        frame["neighbor_delta_mean"] = rearrange(delta.mean(axis=-1), "... -> (...)")
+        frame["neighbor_delta_std"] = rearrange(delta.std(axis=-1), "... -> (...)")
 
     for key in (
         "mu_x",
@@ -119,6 +120,7 @@ def compute_split_features(
         "sigma_xc_std",
         "loss_pred_yc_mean",
         "loss_neighbor_residual_mean",
+        "loss_neighbor_context_residual_mean",
     ):
         full_key = f"{prefix}_{key}"
         if full_key in features:

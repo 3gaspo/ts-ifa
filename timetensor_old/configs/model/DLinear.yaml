@@ -1,0 +1,4 @@
+name: DLinear
+configs:
+  repeat_constant: False
+  kernel_size: 25

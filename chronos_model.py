@@ -7,6 +7,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+from einops import pack, rearrange, repeat
 
 
 def _import_chronos():
@@ -43,7 +44,7 @@ def _broadcast(value: torch.Tensor | None, batch_size: int) -> torch.Tensor | No
     if value.shape[0] == batch_size:
         return value
     if value.shape[0] == 1:
-        return value.expand(batch_size, -1, -1)
+        return repeat(value, "1 channel time -> batch channel time", batch=batch_size)
     return value
 
 
@@ -51,7 +52,8 @@ def _cat(parts: list[torch.Tensor | None]) -> torch.Tensor | None:
     present = [part for part in parts if part is not None]
     if not present:
         return None
-    return torch.cat(present, dim=1)
+    packed, _ = pack(present, "batch * time")
+    return packed
 
 
 class Chronos(nn.Module):
@@ -199,7 +201,10 @@ class Chronos(nn.Module):
         for pred in predictions:
             q_index = pred.shape[1] // 2 if self.quantile_index is None else int(self.quantile_index)
             rows.append(pred[:, q_index, :])
-        return torch.stack(rows, dim=0).to(device=x.device, dtype=x.dtype)
+        return rearrange(rows, "batch dim horizon -> batch dim horizon").to(
+            device=x.device,
+            dtype=x.dtype,
+        )
 
     @torch.no_grad()
     def representation(
@@ -218,7 +223,7 @@ class Chronos(nn.Module):
         embeddings, _ = self.pipeline.embed(
             inputs=self._prepare_inputs(x, context, past_covariates, future_covariates)
         )
-        raw = torch.stack(embeddings, dim=0).to(device=x.device, dtype=x.dtype)
+        raw = rearrange(embeddings, "batch ... -> batch ...").to(device=x.device, dtype=x.dtype)
         if pool:
             return raw.mean(dim=1).mean(dim=1)
-        return raw.flatten(start_dim=1)
+        return rearrange(raw, "batch ... -> batch (...)")

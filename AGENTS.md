@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repo implements baselines and the proposed retrieval model from `latex_source/main.tex`; treat the LaTeX as the spec, but do not edit it unless asked. Core code lives at the root: `load_dataset_model.py` loads CSVs and model configs, `models.py` owns the shared wrapper/registry, `chronos_model.py` and `patchtst.py` hold model-specific wrappers, `neighbors.py` builds aligned windows and KNN features, `extraction.py` runs neighbor extraction, and `features.py` summarizes payloads. `visu/` contains plotting helpers and notebooks. `tests/smoke/` is for tiny load checks only. Files with `old` in the name are comparison references for previous implementations.
+This repo implements baselines and TS-IFA from `latex_old/main.tex`; treat that LaTeX as prior design guidance that may evolve, and do not edit it unless asked. `timetensor_old/` contains reference code from the prior repo. Core code lives at the root: `load_dataset_model.py` loads CSVs and model configs, `models.py` owns the shared wrapper/registry, `chronos_model.py` and `patchtst.py` hold model-specific wrappers, `neighbors.py` builds aligned windows and KNN features, `extraction.py` runs neighbor extraction, `features.py` summarizes payloads, and `ts_ifa.py` plus `train_ts_ifa.py` expose the payload-based adapter. `visu/` contains plotting helpers and notebooks. `tests/smoke/` is for tiny load checks only. Files with `old` in the name are temporary comparison references.
 
 ## Data Flow & Experiment Scope
 
@@ -15,6 +15,7 @@ There is no build step. Run smoke checks before handing off code:
 ```powershell
 python tests/smoke/check_loads.py
 python tests/smoke/check_loads.py --check-patchtst
+python tests/smoke/check_ts_ifa_training.py
 ```
 
 Use `--chronos-weights path/to/weights` only where Chronos dependencies and weights are installed. Example experiment commands are documented in `README.md`.

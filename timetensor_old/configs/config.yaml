@@ -1,0 +1,41 @@
+task:
+  lags: 168
+  horizon: 24
+
+load:
+  rebuild: False
+  example: False
+  shapes: False
+
+training:
+  init:
+  loss: nMSE
+  bs: 256
+  lr: 1e-5
+  epochs: 1000
+  eval_freq: 100
+  print_freq: 100
+  valid_eval: False
+  test_eval: True
+  complete_evaluation: False
+  eval_runs: 1
+  
+misc:
+  seed: 1
+  device: "gpu"
+  output_dir: ../outputs/new/
+  save_name:
+  verbose: 1
+
+defaults:
+  - _self_
+  - data: electricity
+  - model: PatchTST
+  - normalization: instance
+  - extra: all
+
+# fl:
+#   rounds: 10
+#   sampled_clients: 1
+#   fedmin: False
+#   splits:

@@ -8,6 +8,8 @@ This repository contains Python tools for retrieval-based residual adaptation ex
 - `models.py`: common `ForecastModel` wrapper, normalization (`none`, `instance`), persistence and linear baselines, and model registry.
 - `chronos_model.py`: Chronos-2 wrapper for the current inference format.
 - `patchtst.py`: PatchTST implementation with current-format inference hooks.
+- `ts_ifa.py`: TS-IFA (Time Series Informed Forecasting Adapter) model imports.
+- `train_ts_ifa.py`: payload-based training script for TS-IFA.
 - `foundation_models.py`: compatibility imports only; new code should use `chronos_model.py` or `patchtst.py`.
 - `neighbors.py`: aligned window generation, feature representations, and exact KNN search.
 - `extraction.py`: neighbor extraction and prediction payload generation.
@@ -29,15 +31,18 @@ Input data is a date-indexed CSV. Target user columns become `dataset.frame`; op
 
 ## Smoke Checks
 
+Install the runtime dependencies used by the scripts (`torch`, `numpy`, `pandas`, `matplotlib`, and `einops`) in the environment where you run them.
+
 Use the small fixture under `tests/smoke/` to validate loading and model construction:
 
 ```powershell
 python tests/smoke/check_loads.py
 python tests/smoke/check_loads.py --check-patchtst
 python tests/smoke/check_loads.py --chronos-weights path/to/chronos/weights
+python tests/smoke/check_ts_ifa_training.py
 ```
 
-These checks validate CSV parsing, window shapes, persistence inference, optional PatchTST construction, and optional Chronos loading.
+These checks validate CSV parsing, window shapes, persistence inference, optional PatchTST construction, optional Chronos loading, and the TS-IFA training path on synthetic payloads.
 
 ## Experiment Commands
 
@@ -53,12 +58,20 @@ Run neighbor extraction:
 python extraction.py --csv ../datasets/electricity/electricity.csv --lags 168 --horizon 24 --model chronos --model-kwargs '{"weights_path":"path/to/chronos/weights","context_mode":"past_only"}' --neighbors 5 --distance-space chronos --pool-representation --distance-metric cosine --train-stride 24 --eval-stride 24 --period 24 --output-dir outputs/extraction_neighbors --save-name electricity_chronos_k5
 ```
 
+Add `--compute-ec` only when you also need neighbor-context residuals in the payload; it adds extra model forwards.
+
 Analyze an extraction run:
 
 ```powershell
 python features.py --input-dir outputs/extraction_neighbors/electricity_chronos_k5
 ```
 
+Train TS-IFA from extracted payloads:
+
+```powershell
+python train_ts_ifa.py --input-dir outputs/extraction_neighbors/electricity_chronos_k5 --epochs 20 --batch-size 256 --lr 1e-3 --normalization instance
+```
+
 ## Outputs
 
-Write generated artifacts under `outputs/`. Typical files include `*_prediction_payload.pt`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.
+Write generated artifacts under `outputs/`. Typical files include `*_prediction_payload.pt`, `ts_ifa.pt`, `training_nmse.pdf`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.

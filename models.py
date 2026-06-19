@@ -7,6 +7,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+from einops import rearrange, repeat
 
 
 class NoNormalization(nn.Module):
@@ -119,7 +120,7 @@ class Persistence(nn.Module):
 
     def forward(self, x: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         del kwargs
-        return x[..., -1:].repeat_interleave(self.horizon, dim=-1)
+        return repeat(x[..., -1], "batch dim -> batch dim horizon", horizon=self.horizon)
 
 
 class Linear(nn.Module):
@@ -135,8 +136,8 @@ class Linear(nn.Module):
 
     def forward(self, x: torch.Tensor, **kwargs: Any) -> torch.Tensor:
         del kwargs
-        y = self.linear(x.reshape(x.shape[0], self.lags * self.dim))
-        return y.reshape(x.shape[0], self.dim, self.horizon)
+        y = self.linear(rearrange(x, "batch dim lags -> batch (dim lags)"))
+        return rearrange(y, "batch (dim horizon) -> batch dim horizon", dim=self.dim)
 
 
 def _state_dict_from_file(path: str | Path) -> dict[str, Any]:
