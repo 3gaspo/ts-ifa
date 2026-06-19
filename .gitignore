@@ -1,0 +1,6 @@
+.venv
+__pycache__/
+outputs/
+script_outputs/
+timetensors_old/
+timetensor_old/

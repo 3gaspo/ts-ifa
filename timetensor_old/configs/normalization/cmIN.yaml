@@ -1,4 +1,0 @@
-name: cmIN
-configs:
-  latent: False
-  n_clusters:
