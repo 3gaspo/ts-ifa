@@ -31,10 +31,12 @@ def _existing_path(*candidates: str | Path | None) -> Path | None:
 
 
 def _default_chronos_weights() -> Path | None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parent
     return _existing_path(
-        repo_root / "timetensors" / "models" / "sota" / "chronos2" / "weights",
+        repo_root / "weights" / "chronos2",
+        repo_root / "timetensors_old" / "models" / "sota" / "chronos2" / "weights",
         repo_root / "timetensors_old" / "src" / "timetensor" / "sota" / "chronos2" / "weights",
+        repo_root / "timetensor_oldest" / "src" / "timetensor" / "sota" / "chronos2" / "weights",
     )
 
 

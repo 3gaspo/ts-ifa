@@ -82,7 +82,9 @@ python evaluate_baselines.py --input-dir outputs/extraction_neighbors/electricit
 
 ## SLURM Experiments
 
-Submit the full baseline sweep:
+Edit the literal config block near the top of each script, especially `DATASETS`, `SETTINGS`, and `CHRONOS_WEIGHTS_PATH`, then submit from the repository checkout. The scripts intentionally follow the cluster workflow directly rather than reading environment-variable overrides.
+
+Evaluate direct forecasts and all payload baselines:
 
 ```bash
 sbatch slurm/evaluate_baselines.slurm
@@ -94,14 +96,7 @@ Submit TS-IFA extraction, training, and evaluation:
 sbatch slurm/train_ts_ifa.slurm
 ```
 
-Override cluster settings with environment variables:
-
-```bash
-DATASETS="electricity traffic" SETTINGS="168:24 672:168" CHRONOS_WEIGHTS_PATH=/path/to/chronos sbatch slurm/evaluate_baselines.slurm
-MODEL=chronos NEIGHBORS=5 EPOCHS=50 LR=1e-3 sbatch slurm/train_ts_ifa.slurm
-```
-
-The baseline job runs direct model evaluations plus neighbor payload extraction, feature summaries, and adapter baselines. The TS-IFA job reuses an existing payload unless `FORCE_EXTRACT=true` is set, then writes `ts_ifa/eval_metrics.json` and `ts_ifa/training_nmse.pdf`.
+The baseline job loops over datasets, lag/horizon settings, retrieval spaces, and neighbor counts. It runs direct persistence/Chronos forecasts, extracts Chronos payloads, and evaluates the notebook/LaTeX mixtures and gates. The TS-IFA job extracts one configured payload per dataset/setting, trains the adapter with AdamW and instance normalization, evaluates the eval payload, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
 
 ## Outputs
 

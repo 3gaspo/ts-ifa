@@ -8,6 +8,10 @@ This repo implements baselines and TS-IFA from `latex_old/main.tex`; treat that 
 
 Input is a date-indexed CSV with target user columns and optional covariates. Windows use `(users, 1, lags)` inputs and `(users, 1, horizon)` targets. `experiment_univariate.py` evaluates direct baselines; `extraction.py` builds query/datastore windows, computes representations, searches neighbors, and saves payloads; `features.py` turns payloads into tables and plots. Full experiments run on a distant cluster from another PC, so keep local work focused on loading and shape checks.
 
+## SLURM Experiment Rules
+
+Full experiments are launched with files under `slurm/`. Follow the established cluster style: include the complete `#SBATCH` header, activate `.venv`, define configs directly near the top, loop over Bash `DATASETS` and `SETTINGS` arrays, and pass those values explicitly to Python entry points. Do not infer configs from path names, add `${VAR:-default}` environment fallbacks, or build generic launch frameworks. Keep each job limited to options used by this package and validate scripts with `bash -n`.
+
 ## Build, Test, and Development Commands
 
 There is no build step. Run smoke checks before handing off code:
