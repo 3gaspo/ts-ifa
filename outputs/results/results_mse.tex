@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{MSE results on eval.}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcrrrrrrrrrr|rr}
+\toprule
+Dataset & $L$--$H$ & Scale & chronos & raw\_L2\_10/context & raw\_L2\_10/gate-h & raw\_L2\_10/gate-s & raw\_L2\_10/mix0 & raw\_L2\_10/mix1 & raw\_L2\_10/mix2 & raw\_L2\_10/kNN & raw\_L2\_10/kNN-w & raw\_L2\_10/residual & raw\_L2\_10/oracle-h & raw\_L2\_10/oracle-s \\
+\midrule
+\multirow{1}{*}{electricity} & 672--168 & $\times 10^{6}$ & 4.74 & 7.13 & 6.18 & 6.51 & \textbf{4.74} & 4.90 & 7.30 & 293.31 & 279.78 & 6.78 & 4.11 & 4.40 \\
+ & \textit{Improvement} &  & 0.00\% & -50.36\% & -30.42\% & -37.30\% & \textbf{0.00\%} & -3.36\% & -53.99\% & -6085.31\% & -5799.87\% & -42.95\% & 13.28\% & 7.31\% \\
+\midrule
+\multicolumn{15}{l}{\textit{Improvements by setting}} \\
+ & 672--168 &  & 0.00\% & -50.36\% & -30.42\% & -37.30\% & \textbf{0.00\%} & -3.36\% & -53.99\% & -6085.31\% & -5799.87\% & -42.95\% & 13.28\% & 7.31\% \\
+\midrule
+\multicolumn{2}{l}{Overall improvement} &  & 0.00\% & -50.36\% & -30.42\% & -37.30\% & \textbf{0.00\%} & -3.36\% & -53.99\% & -6085.31\% & -5799.87\% & -42.95\% & 13.28\% & 7.31\% \\
+\bottomrule
+\end{tabular}%
+}
+\label{tab:results}
+\end{table}
