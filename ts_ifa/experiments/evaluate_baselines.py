@@ -77,9 +77,16 @@ def weighted_neighbor_residual(arrays: dict[str, np.ndarray]) -> np.ndarray:
 
 
 def ridge_no_intercept(x: np.ndarray, y: np.ndarray, l2: float) -> np.ndarray:
-    xtx = x.T @ x
+    if x.shape[0] == 0:
+        raise ValueError("cannot fit ridge regression without observations")
+    if l2 < 0:
+        raise ValueError("l2 must be non-negative")
+    # Average the normal equations before regularizing so that ``l2`` does
+    # not become weaker merely because more windows or horizons are present.
+    xtx = (x.T @ x) / x.shape[0]
+    xty = (x.T @ y) / x.shape[0]
     reg = float(l2) * np.eye(xtx.shape[0], dtype=np.float64)
-    return np.linalg.solve(xtx + reg, x.T @ y)
+    return np.linalg.solve(xtx + reg, xty)
 
 
 def fit_baseline_adapters(train: dict[str, np.ndarray], l2: float) -> dict[str, Any]:
@@ -179,35 +186,76 @@ def gate_features(arrays: dict[str, np.ndarray]) -> np.ndarray:
     return np.stack(cols, axis=1).astype(np.float32)
 
 
-class TorchGate(torch.nn.Module):
-    def __init__(self, input_dim: int, output_dim: int):
-        super().__init__()
-        self.linear = torch.nn.Linear(input_dim, output_dim)
+def fit_binary_gate(
+    x_np: np.ndarray,
+    y_np: np.ndarray,
+    *,
+    iterations: int,
+    learning_rate: float,
+    depth: int,
+    seed: int,
+) -> dict[str, Any]:
+    labels = np.asarray(y_np, dtype=np.int64).reshape(-1)
+    unique = np.unique(labels)
+    if len(unique) == 1:
+        return {"constant": float(unique[0])}
+    try:
+        from catboost import CatBoostClassifier
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency error
+        raise ModuleNotFoundError(
+            "CatBoost gates require the `catboost` project dependency. Run `uv sync`."
+        ) from exc
+    model = CatBoostClassifier(
+        iterations=int(iterations),
+        learning_rate=float(learning_rate),
+        depth=int(depth),
+        loss_function="Logloss",
+        eval_metric="Accuracy",
+        auto_class_weights="Balanced",
+        random_seed=int(seed),
+        verbose=False,
+        allow_writing_files=False,
+    )
+    model.fit(x_np, labels)
+    return {"classifier": model}
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.linear(x)
 
-
-def fit_gate(x_np: np.ndarray, y_np: np.ndarray, *, epochs: int, lr: float, weight_decay: float, seed: int) -> TorchGate:
+def fit_gate(
+    x_np: np.ndarray,
+    y_np: np.ndarray,
+    *,
+    iterations: int,
+    learning_rate: float,
+    depth: int,
+    seed: int,
+) -> list[dict[str, Any]]:
     if x_np.shape[0] == 0:
         raise ValueError("cannot train baseline gates from an empty oracle-train slice")
-    torch.manual_seed(int(seed))
-    x = torch.as_tensor(x_np, dtype=torch.float32)
-    y = torch.as_tensor(y_np, dtype=torch.float32)
-    model = TorchGate(x.shape[1], y.shape[1])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=float(lr), weight_decay=float(weight_decay))
-    for _ in range(int(epochs)):
-        optimizer.zero_grad(set_to_none=True)
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(model(x), y)
-        loss.backward()
-        optimizer.step()
-    return model
+    labels = np.asarray(y_np)
+    if labels.ndim == 1:
+        labels = labels[:, None]
+    return [
+        fit_binary_gate(
+            x_np,
+            labels[:, output_idx],
+            iterations=iterations,
+            learning_rate=learning_rate,
+            depth=depth,
+            seed=seed + output_idx,
+        )
+        for output_idx in range(labels.shape[1])
+    ]
 
 
-def predict_gate(model: TorchGate, features: np.ndarray) -> np.ndarray:
-    with torch.inference_mode():
-        logits = model(torch.as_tensor(features, dtype=torch.float32))
-    return torch.sigmoid(logits).numpy()
+def predict_gate(models: list[dict[str, Any]], features: np.ndarray) -> np.ndarray:
+    columns = []
+    for model in models:
+        if "constant" in model:
+            probability = np.full(features.shape[0], model["constant"], dtype=np.float64)
+        else:
+            probability = model["classifier"].predict_proba(features)[:, 1]
+        columns.append(probability)
+    return np.column_stack(columns)
 
 
 def add_true_context_oracles(
@@ -230,9 +278,9 @@ def add_context_gate_predictions(
     oracle_arrays: dict[str, np.ndarray],
     arrays_by_split: dict[str, dict[str, np.ndarray]],
     *,
-    epochs: int,
-    lr: float,
-    weight_decay: float,
+    iterations: int,
+    learning_rate: float,
+    depth: int,
     seed: int,
     train_horizon_gate: bool,
 ) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, Any]]:
@@ -243,9 +291,9 @@ def add_context_gate_predictions(
     scalar_model = fit_gate(
         features_train,
         scalar_label,
-        epochs=epochs,
-        lr=lr,
-        weight_decay=weight_decay,
+        iterations=iterations,
+        learning_rate=learning_rate,
+        depth=depth,
         seed=seed,
     )
     horizon_model = None
@@ -254,9 +302,9 @@ def add_context_gate_predictions(
         horizon_model = fit_gate(
             features_train,
             horizon_label,
-            epochs=epochs,
-            lr=lr,
-            weight_decay=weight_decay,
+            iterations=iterations,
+            learning_rate=learning_rate,
+            depth=depth,
             seed=seed + 1,
         )
 
@@ -280,8 +328,9 @@ def add_context_gate_predictions(
         add_true_context_oracles(split_predictions, arrays)
         out[split] = split_predictions
     artifacts = {
-        "scalar_state_dict": scalar_model.state_dict(),
-        "horizon_state_dict": horizon_model.state_dict() if horizon_model is not None else None,
+        "backend": "catboost",
+        "scalar_models": scalar_model,
+        "horizon_models": horizon_model,
     }
     return out, artifacts
 
@@ -315,9 +364,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--prefixes", default="train,oracle,eval")
     parser.add_argument("--l2", type=float, default=1e-3)
-    parser.add_argument("--gate-epochs", type=int, default=300)
-    parser.add_argument("--gate-lr", type=float, default=1e-2)
-    parser.add_argument("--gate-weight-decay", type=float, default=1e-3)
+    parser.add_argument("--gate-iterations", "--gate-epochs", dest="gate_iterations", type=int, default=300)
+    parser.add_argument(
+        "--gate-learning-rate",
+        "--gate-lr",
+        dest="gate_learning_rate",
+        type=float,
+        default=3e-2,
+    )
+    parser.add_argument("--gate-depth", type=int, default=4)
     parser.add_argument("--train-horizon-gate", action="store_true")
     parser.add_argument("--seed", type=int, default=1)
     return parser.parse_args()
@@ -357,9 +412,9 @@ def main() -> dict[str, Path]:
         predictions_by_split_base,
         arrays_by_split["oracle"],
         arrays_by_split,
-        epochs=args.gate_epochs,
-        lr=args.gate_lr,
-        weight_decay=args.gate_weight_decay,
+        iterations=args.gate_iterations,
+        learning_rate=args.gate_learning_rate,
+        depth=args.gate_depth,
         seed=args.seed,
         train_horizon_gate=args.train_horizon_gate,
     )
@@ -379,9 +434,10 @@ def main() -> dict[str, Path]:
             "mix_artifacts": artifacts,
             "context_gate_artifacts": gate_artifacts,
             "gate_config": {
-                "epochs": args.gate_epochs,
-                "lr": args.gate_lr,
-                "weight_decay": args.gate_weight_decay,
+                "backend": "catboost",
+                "iterations": args.gate_iterations,
+                "learning_rate": args.gate_learning_rate,
+                "depth": args.gate_depth,
                 "train_horizon_gate": args.train_horizon_gate,
             },
         },

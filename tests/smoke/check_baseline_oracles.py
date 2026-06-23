@@ -12,7 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.experiments.evaluate_baselines import add_true_context_oracles  # noqa: E402
+from ts_ifa.experiments.evaluate_baselines import (  # noqa: E402
+    add_true_context_oracles,
+    fit_gate,
+    predict_gate,
+    ridge_no_intercept,
+)
 
 
 def main() -> None:
@@ -31,6 +36,26 @@ def main() -> None:
         predictions["oracle_context_horizon"],
         np.asarray([[1.0, 2.0], [10.0, 10.0]], dtype=np.float32),
     )
+    coefficient = ridge_no_intercept(
+        np.ones((2, 1), dtype=np.float64),
+        np.ones(2, dtype=np.float64),
+        l2=1.0,
+    )
+    np.testing.assert_allclose(coefficient, np.asarray([0.5]))
+
+    gate_x = np.asarray([[0.0], [0.1], [0.9], [1.0]], dtype=np.float32)
+    gate_y = np.asarray([[0], [0], [1], [1]], dtype=np.float32)
+    gate = fit_gate(
+        gate_x,
+        gate_y,
+        iterations=20,
+        learning_rate=0.1,
+        depth=2,
+        seed=1,
+    )
+    probabilities = predict_gate(gate, gate_x)
+    assert probabilities.shape == gate_y.shape
+    assert probabilities[:2].mean() < probabilities[2:].mean()
     print("baseline oracle checks passed")
 
 

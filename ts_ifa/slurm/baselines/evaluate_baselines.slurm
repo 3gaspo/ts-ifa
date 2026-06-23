@@ -63,10 +63,10 @@ for dataset in "${DATASETS[@]}"; do
     done
 
     for space in "${DISTANCE_SPACES[@]}"; do
-      MAX_STORE_WINDOWS=10000
+      MAX_STORE_WINDOWS=30000
       SPACE_ARGS=()
       if [ "$space" = "chronos" ]; then
-        MAX_STORE_WINDOWS=5000
+        MAX_STORE_WINDOWS=15000
         SPACE_ARGS+=(--pool-representation)
       fi
 

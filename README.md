@@ -103,7 +103,7 @@ Submit TS-IFA extraction, training, and evaluation:
 sbatch ts_ifa/slurm/training/train_ts_ifa.slurm
 ```
 
-The baseline job loops over datasets, lag/horizon settings, retrieval spaces, and neighbor counts. It evaluates direct persistence/Chronos forecasts on T3, extracts Chronos payloads, fits mixtures on T1, fits only the context-conditioned gate on T2, and evaluates on T3. The TS-IFA job trains the adapter on T1+T2 with AdamW and instance normalization, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
+The baseline job loops over datasets, lag/horizon settings, retrieval spaces, and neighbor counts. It evaluates direct persistence/Chronos forecasts on T3, extracts Chronos payloads, fits ridge-regularized mixtures on T1, fits CatBoost context gates on T2, and evaluates on T3. Ridge normal equations are averaged over observations so `--l2` has stable strength across payload sizes. The current job caps raw and Chronos-representation datastores at 30,000 and 15,000 windows respectively. The TS-IFA job trains the adapter on T1+T2 with AdamW and instance normalization, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
 
 Both jobs finish by running `ts_ifa.results_table` and write
 `<OUT_ROOT>/results_mse.tex`. The result loader combines direct
