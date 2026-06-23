@@ -6,6 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
+
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -13,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
 from ts_ifa.data.neighbors import aligned_store_dates  # noqa: E402
+from ts_ifa.models.chronos_model import Chronos  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,6 +54,25 @@ def main() -> None:
     )
     pred = persistence(x, future_covariates=future_cov)
     assert pred.shape == y.shape
+
+    chronos_stub = Chronos.__new__(Chronos)
+    torch.nn.Module.__init__(chronos_stub)
+    chronos_stub.lags = lags
+    chronos_stub.horizon = horizon
+    chronos_stub.context_mode = "future"
+    chronos_stub.shared_context = False
+    context = torch.zeros(2, 3, lags + horizon)
+    chronos_inputs = chronos_stub._prepare_inputs(
+        x,
+        context,
+        past_covariates=None,
+        future_covariates=future_cov,
+    )
+    for item in chronos_inputs:
+        past_keys = set(item["past_covariates"])
+        future_keys = set(item["future_covariates"])
+        assert future_keys <= past_keys
+        assert {"context_0", "context_1", "context_2", "covariate_0"} == future_keys
 
     assert split_bounds(100, "0.3,0.35,0.15,0.2") == (30, 65, 80, 100)
     fixed_dates = aligned_store_dates(

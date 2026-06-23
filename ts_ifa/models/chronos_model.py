@@ -7,7 +7,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from einops import pack, rearrange, repeat
+from einops import rearrange, repeat
 
 
 def _import_chronos():
@@ -43,14 +43,6 @@ def _broadcast(value: torch.Tensor | None, batch_size: int) -> torch.Tensor | No
     if value.shape[0] == 1:
         return repeat(value, "1 channel time -> batch channel time", batch=batch_size)
     return value
-
-
-def _cat(parts: list[torch.Tensor | None]) -> torch.Tensor | None:
-    present = [part for part in parts if part is not None]
-    if not present:
-        return None
-    packed, _ = pack(present, "batch * time")
-    return packed
 
 
 class Chronos(nn.Module):
@@ -114,7 +106,12 @@ class Chronos(nn.Module):
         batch_size: int,
         past_covariates: torch.Tensor | None,
         future_covariates: torch.Tensor | None,
-    ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
+    ) -> tuple[
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+        torch.Tensor | None,
+    ]:
         context_past = None
         context_future = None
         if context is not None:
@@ -130,9 +127,27 @@ class Chronos(nn.Module):
 
         past_covariates = _broadcast(past_covariates, batch_size)
         future_covariates = _broadcast(future_covariates, batch_size)
-        past = _cat([context_past, past_covariates])
-        future = _cat([context_future, future_covariates])
-        return past, future
+        if future_covariates is not None:
+            if past_covariates is None:
+                past_covariates = torch.zeros(
+                    *future_covariates.shape[:-1],
+                    self.lags,
+                    device=future_covariates.device,
+                    dtype=future_covariates.dtype,
+                )
+            elif past_covariates.shape[0] != future_covariates.shape[0]:
+                raise ValueError("past and future covariates must have matching batch dimensions")
+            elif past_covariates.shape[1] < future_covariates.shape[1]:
+                missing_channels = future_covariates.shape[1] - past_covariates.shape[1]
+                padding = torch.zeros(
+                    past_covariates.shape[0],
+                    missing_channels,
+                    past_covariates.shape[-1],
+                    device=past_covariates.device,
+                    dtype=past_covariates.dtype,
+                )
+                past_covariates = torch.cat([past_covariates, padding], dim=1)
+        return context_past, context_future, past_covariates, future_covariates
 
     def _prepare_inputs(
         self,
@@ -142,7 +157,7 @@ class Chronos(nn.Module):
         future_covariates: torch.Tensor | None,
     ) -> list[dict[str, Any]]:
         batch_size, _, _ = x.shape
-        past, future = self._context_parts(
+        context_past, context_future, past_covariates, future_covariates = self._context_parts(
             context,
             batch_size,
             past_covariates,
@@ -151,8 +166,34 @@ class Chronos(nn.Module):
         inputs = []
         for batch_index in range(batch_size):
             item: dict[str, Any] = {"target": x[batch_index].detach().cpu()}
-            past_dict = self._series_dict(past, batch_index, batch_size, "past")
-            future_dict = self._series_dict(future, batch_index, batch_size, "future")
+            past_dict = self._series_dict(
+                context_past,
+                batch_index,
+                batch_size,
+                "context",
+            )
+            past_dict.update(
+                self._series_dict(
+                    past_covariates,
+                    batch_index,
+                    batch_size,
+                    "covariate",
+                )
+            )
+            future_dict = self._series_dict(
+                context_future,
+                batch_index,
+                batch_size,
+                "context",
+            )
+            future_dict.update(
+                self._series_dict(
+                    future_covariates,
+                    batch_index,
+                    batch_size,
+                    "covariate",
+                )
+            )
             if past_dict:
                 item["past_covariates"] = past_dict
             if future_dict:
