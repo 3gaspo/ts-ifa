@@ -143,6 +143,48 @@ def _latex_setting(setting: str) -> str:
     return "--".join(_latex(part) for part in re.split(r"[_-]", setting))
 
 
+_METHOD_LABELS = {
+    "context_conditioned": "context",
+    "neighbor_weighted_mean": "kNN-w",
+    "neighbor_unweighted_mean": "kNN",
+    "pred_plus_weighted_e": "residual",
+    "mix_0_weighted": "mix0",
+    "mix_1_learned": "mix1",
+    "mix_2_full_horizon": "mix2",
+    "gated_context_scalar": "gate-s",
+    "gated_context_horizon": "gate-h",
+    "oracle_context_scalar": "oracle-s",
+    "oracle_context_horizon": "oracle-h",
+}
+
+
+def _short_run_name(run: str) -> str:
+    match = re.fullmatch(
+        r"chronos_(raw|fourier|chronos|patchtst|model|representation)_(euclidean|cosine|pearson)_(\d+)_(online|fixed)",
+        run,
+    )
+    if match is not None:
+        space, metric, neighbors, mode = match.groups()
+        metric = "L2" if metric == "euclidean" else metric
+        parts = [space, metric, neighbors]
+        if mode == "fixed":
+            parts.append("fixed")
+        return "_".join(parts)
+    short = run.removeprefix("chronos_").replace("_euclidean_", "_L2_")
+    return short.removesuffix("_online")
+
+
+def _method_label(method: str, short_names: bool) -> str:
+    if not short_names or "/" not in method:
+        return method
+    run, variant = method.rsplit("/", 1)
+    return f"{_short_run_name(run)}/{_METHOD_LABELS.get(variant, variant)}"
+
+
+def _method_selected(method: str, selectors: set[str]) -> bool:
+    return method in selectors or method.rsplit("/", 1)[-1] in selectors
+
+
 def _auto_exponent(values: Sequence[float], lower_is_better: bool) -> int:
     del lower_is_better
     finite = [abs(value) for value in values if math.isfinite(value) and value != 0]
@@ -160,19 +202,26 @@ def _improvement(reference: float, current: float, lower_is_better: bool) -> flo
     return (1.0 if lower_is_better else -1.0) * (reference - current) / abs(reference) * 100.0
 
 
-def _average_improvements(rows: Sequence[Mapping[str, float]], methods: Sequence[str], reference: str,
-                          lower_is_better: bool) -> dict[str, float]:
-    output = {}
+def _improvements_of_averages(rows: Sequence[Mapping[str, float]], methods: Sequence[str], reference: str,
+                              lower_is_better: bool) -> dict[str, float]:
+    averages = {}
     for method in methods:
-        values = [_improvement(row.get(reference, math.nan), row.get(method, math.nan), lower_is_better) for row in rows]
-        finite = [value for value in values if math.isfinite(value)]
-        output[method] = sum(finite) / len(finite) if finite else math.nan
-    return output
+        finite = [row.get(method, math.nan) for row in rows]
+        finite = [value for value in finite if math.isfinite(value)]
+        averages[method] = sum(finite) / len(finite) if finite else math.nan
+    reference_average = averages.get(reference, math.nan)
+    return {
+        method: _improvement(reference_average, averages[method], lower_is_better)
+        for method in methods
+    }
 
 
 def _format_cells(values: Mapping[str, float], methods: Sequence[str], decimals: int, *, lower_is_better: bool,
-                  bold: bool, divisor: float = 1.0, percent: bool = False) -> list[str]:
-    finite = [value for value in values.values() if math.isfinite(value)]
+                  bold: bool, divisor: float = 1.0, percent: bool = False,
+                  bold_methods: Sequence[str] | None = None) -> list[str]:
+    eligible = set(methods if bold_methods is None else bold_methods)
+    finite = [values.get(method, math.nan) for method in methods if method in eligible]
+    finite = [value for value in finite if math.isfinite(value)]
     best = (min(finite) if lower_is_better else max(finite)) if finite else None
     cells = []
     for method in methods:
@@ -181,7 +230,7 @@ def _format_cells(values: Mapping[str, float], methods: Sequence[str], decimals:
             cells.append("--")
             continue
         cell = f"{raw / divisor:.{decimals}f}" + (r"\%" if percent else "")
-        if bold and best is not None and math.isclose(raw, best, rel_tol=1e-12, abs_tol=1e-15):
+        if bold and method in eligible and best is not None and math.isclose(raw, best, rel_tol=1e-12, abs_tol=1e-15):
             cell = rf"\textbf{{{cell}}}"
         cells.append(cell)
     return cells
@@ -194,7 +243,8 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
                 bold: bool = True, dataset_improvements: bool = True, setting_improvements: bool = True,
                 overall_improvement: bool = True, auto_scale: bool = True, scale_exponent: int | None = None,
                 scale_exponents: Mapping[tuple[str, str], int] | None = None, caption: str | None = None,
-                label: str = "tab:results") -> str:
+                label: str = "tab:results", excluded_from_bold: Sequence[str] | None = None,
+                short_names: bool = True) -> str:
     """Render selected records as a complete LaTeX table environment."""
     filtered = [result for result in results if result.metric.casefold() == metric.casefold()
                 and result.split.casefold() == split.casefold()]
@@ -207,7 +257,21 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
             if (result.setting in per_dataset[result.dataset] if result.dataset in per_dataset
                 else not global_settings or result.setting in global_settings)
         ]
-    method_order = list(methods) if methods else sorted({result.method for result in filtered}, key=str.casefold)
+    if methods:
+        method_order = list(methods)
+    else:
+        method_order = sorted(
+            {result.method for result in filtered if result.method.rsplit("/", 1)[-1] != "vanilla"},
+            key=str.casefold,
+        )
+    excluded_selectors = set(excluded_from_bold or ())
+    excluded_methods = [
+        method for method in method_order
+        if method.rsplit("/", 1)[-1].startswith("oracle_")
+        or _method_selected(method, excluded_selectors)
+    ]
+    regular_methods = [method for method in method_order if method not in set(excluded_methods)]
+    method_order = [*regular_methods, *excluded_methods]
     filtered = [result for result in filtered if result.method in set(method_order)]
     if not filtered:
         raise ValueError(f"no results match metric={metric!r}, split={split!r}, and the selected filters")
@@ -228,10 +292,14 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
     observed_settings = sorted({setting for _, setting in table}, key=_setting_key)
     exponent_overrides = scale_exponents or {}
 
+    column_spec = "llc" + "r" * len(regular_methods)
+    if excluded_methods:
+        column_spec += "|" + "r" * len(excluded_methods)
     lines = [r"\begin{table}[htbp]", r"\centering",
              rf"\caption{{{_latex(caption or f'{metric.upper()} results on {split}.')}}}",
-             r"\resizebox{\textwidth}{!}{%", rf"\begin{{tabular}}{{llc{'r' * len(method_order)}}}", r"\toprule",
-             "Dataset & $L$--$H$ & Scale & " + " & ".join(_latex(method) for method in method_order) + r" \\",
+             r"\resizebox{\textwidth}{!}{%", rf"\begin{{tabular}}{{{column_spec}}}", r"\toprule",
+             "Dataset & $L$--$H$ & Scale & "
+             + " & ".join(_latex(_method_label(method, short_names)) for method in method_order) + r" \\",
              r"\midrule"]
     for dataset_index, dataset in enumerate(dataset_order):
         row_settings = settings_by_dataset[dataset]
@@ -243,13 +311,14 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
                         else _auto_exponent(scale_values, lower_is_better) if auto_scale else 0)
             dataset_cell = rf"\multirow{{{len(row_settings)}}}{{*}}{{{_latex(dataset)}}}" if setting_index == 0 else ""
             cells = _format_cells(row, method_order, decimals, lower_is_better=lower_is_better, bold=bold,
-                                  divisor=10.0**exponent)
+                                  divisor=10.0**exponent, bold_methods=regular_methods)
             lines.append(" & ".join([dataset_cell, _latex_setting(setting),
                                       rf"$\times 10^{{{exponent}}}$", *cells]) + r" \\")
         if dataset_improvements:
-            improvements = _average_improvements([table[(dataset, setting)] for setting in row_settings],
-                                                 method_order, reference, lower_is_better)
-            cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold, percent=True)
+            improvements = _improvements_of_averages([table[(dataset, setting)] for setting in row_settings],
+                                                      method_order, reference, lower_is_better)
+            cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold,
+                                  percent=True, bold_methods=regular_methods)
             lines.append(" & ".join(["", r"\textit{Improvement}", "", *cells]) + r" \\")
         if dataset_index < len(dataset_order) - 1:
             lines.append(r"\midrule")
@@ -257,12 +326,14 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
         lines.extend([r"\midrule", r"\multicolumn{%d}{l}{\textit{Improvements by setting}} \\" % (3 + len(method_order))])
         for setting in observed_settings:
             rows = [row for (_, row_setting), row in table.items() if row_setting == setting]
-            improvements = _average_improvements(rows, method_order, reference, lower_is_better)
-            cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold, percent=True)
+            improvements = _improvements_of_averages(rows, method_order, reference, lower_is_better)
+            cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold,
+                                  percent=True, bold_methods=regular_methods)
             lines.append(" & ".join(["", _latex_setting(setting), "", *cells]) + r" \\")
     if overall_improvement:
-        improvements = _average_improvements(list(table.values()), method_order, reference, lower_is_better)
-        cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold, percent=True)
+        improvements = _improvements_of_averages(list(table.values()), method_order, reference, lower_is_better)
+        cells = _format_cells(improvements, method_order, decimals, lower_is_better=False, bold=bold,
+                              percent=True, bold_methods=regular_methods)
         lines.extend([r"\midrule", " & ".join([r"\multicolumn{2}{l}{Overall improvement}", "", *cells]) + r" \\"])
     lines.extend([r"\bottomrule", r"\end{tabular}%", r"}", rf"\label{{{_latex(label)}}}", r"\end{table}"])
     return "\n".join(lines) + "\n"
@@ -288,6 +359,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dataset-settings", action="append", default=[], metavar="DATASET=L_H,L_H")
     parser.add_argument("--methods", default=None, help="Comma/semicolon-separated ordered columns")
     parser.add_argument("--reference", default=None)
+    parser.add_argument(
+        "--exclude-from-bold",
+        default=None,
+        help="Comma/semicolon-separated method IDs or variant names to move right and exclude from bolding",
+    )
+    parser.add_argument("--long-method-names", action="store_true")
     parser.add_argument("--decimals", type=int, default=2)
     parser.add_argument("--higher-is-better", action="store_true")
     parser.add_argument("--no-bold", action="store_true")
@@ -316,6 +393,7 @@ def main(argv: Sequence[str] | None = None) -> Path:
         setting_improvements=not args.no_setting_improvements, overall_improvement=not args.no_overall_improvement,
         auto_scale=not args.no_auto_scale, scale_exponent=args.scale_exponent,
         scale_exponents=_parse_scale_exponents(args.row_scale), caption=args.caption, label=args.label,
+        excluded_from_bold=_split_names(args.exclude_from_bold), short_names=not args.long_method_names,
     )
     print(f"LaTeX table written to {output}")
     return output

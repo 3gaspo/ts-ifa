@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import torch
 
@@ -16,6 +17,7 @@ if str(ROOT) not in sys.path:
 from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
 from ts_ifa.data.neighbors import aligned_store_dates  # noqa: E402
 from ts_ifa.models.chronos_model import Chronos  # noqa: E402
+from ts_ifa.models.models import ForecastModel, Linear, parameter_counts  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,12 +57,17 @@ def main() -> None:
     pred = persistence(x, future_covariates=future_cov)
     assert pred.shape == y.shape
 
+    linear = ForecastModel(Linear(lags=lags, horizon=horizon))
+    assert parameter_counts(linear) == (lags * horizon + horizon, lags * horizon + horizon)
+
     chronos_stub = Chronos.__new__(Chronos)
     torch.nn.Module.__init__(chronos_stub)
     chronos_stub.lags = lags
     chronos_stub.horizon = horizon
     chronos_stub.context_mode = "future"
     chronos_stub.shared_context = False
+    chronos_stub.pipeline = SimpleNamespace(model=torch.nn.Linear(3, 2))
+    assert parameter_counts(chronos_stub) == (8, 8)
     context = torch.zeros(2, 3, lags + horizon)
     chronos_inputs = chronos_stub._prepare_inputs(
         x,

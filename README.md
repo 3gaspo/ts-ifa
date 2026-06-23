@@ -33,7 +33,9 @@ The default chronological ratios are `0.30,0.35,0.15,0.20`:
 - T2: context-gate training and the second part of TS-IFA training.
 - T3: untouched final evaluation for direct baselines, mixtures, gates, and TS-IFA.
 
-Retrieval defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
+Retrieval defaults to L2 (`--distance-metric euclidean`) on raw lookbacks that are instance-normalized independently per window. `--no-feature-normalization` disables this retrieval-only normalization; it is separate from the forecasting model's `--normalization` option. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
+
+The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
 
 ## Smoke Checks
 
@@ -45,6 +47,7 @@ Use the small fixture under `tests/smoke/` to validate loading and model constru
 python tests/smoke/check_loads.py
 python tests/smoke/check_loads.py --check-patchtst
 python tests/smoke/check_loads.py --chronos-weights ../weights/chronos2
+python tests/smoke/check_baseline_oracles.py
 python tests/smoke/check_ts_ifa_training.py
 ```
 
@@ -106,8 +109,10 @@ Both jobs finish by running `ts_ifa.results_table` and write
 `<OUT_ROOT>/results_mse.tex`. The result loader combines direct
 `univariate_summary.json`, adapter `baseline_metrics.json`, and
 `ts_ifa/eval_metrics.json` artifacts. Retrieval-dependent columns are qualified
-as `<retrieval-run>/<method>` so equally named baselines from different
-retrieval settings remain distinct.
+by retrieval setting so equally named baselines remain distinct. Table labels
+are shortened by default: for example, `chronos_raw_euclidean_3_online/mix_1_learned`
+is displayed as `raw_L2_3/mix1`, while fixed retrieval is displayed as
+`raw_L2_3_fixed/mix1`. Run-specific `vanilla` columns are hidden by default.
 
 Generate or regenerate a table independently with:
 
@@ -122,14 +127,20 @@ python -m ts_ifa.results_table outputs/results \
 
 By default, the best value per row is bold, each row has an explicit automatic
 power-of-ten scale, and dataset, per-L-H, and overall percentage improvements
-are shown. These can independently be disabled with `--no-bold`,
+are shown. Each summary percentage is computed from the methods' average metric
+values, not by averaging individual percentages. These can independently be disabled with `--no-bold`,
 `--no-dataset-improvements`, `--no-setting-improvements`, and
 `--no-overall-improvement`. Global `--settings`, repeatable dataset-specific
 `--dataset-settings`, ordered `--methods`, `--higher-is-better`,
 `--no-auto-scale`, `--scale-exponent`, repeatable
 `--row-scale DATASET/L_H=EXPONENT`, `--caption`, `--label`, and `--output` are
-also available. The generated table uses the LaTeX `booktabs`, `multirow`, and
-`graphicx` packages.
+also available. The scalar and horizon-wise true context oracles use T3 targets
+to select between vanilla and context-conditioned predictions. Their columns
+are automatically moved to the right behind a vertical rule and excluded from
+best-value bolding. `--exclude-from-bold` applies the same treatment to other
+method IDs or variant names, and `--long-method-names` restores artifact names.
+The generated table uses the LaTeX `booktabs`, `multirow`, and `graphicx`
+packages.
 
 Experiment entry points surround each run with a shared separator, log their
 identity once, then emit concise stage start/completion messages, throttled

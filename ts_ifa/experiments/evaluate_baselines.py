@@ -210,6 +210,21 @@ def predict_gate(model: TorchGate, features: np.ndarray) -> np.ndarray:
     return torch.sigmoid(logits).numpy()
 
 
+def add_true_context_oracles(
+    predictions: dict[str, np.ndarray],
+    arrays: dict[str, np.ndarray],
+) -> None:
+    """Add target-aware upper bounds for scalar and horizon context gates."""
+    pred = arrays["pred"]
+    pred_c = arrays["pred_c"]
+    target = arrays["y"]
+    base_loss = (target - pred) ** 2
+    context_loss = (target - pred_c) ** 2
+    use_context_scalar = context_loss.mean(axis=1, keepdims=True) < base_loss.mean(axis=1, keepdims=True)
+    predictions["oracle_context_scalar"] = np.where(use_context_scalar, pred_c, pred)
+    predictions["oracle_context_horizon"] = np.where(context_loss < base_loss, pred_c, pred)
+
+
 def add_context_gate_predictions(
     base_predictions_by_split: dict[str, dict[str, np.ndarray]],
     oracle_arrays: dict[str, np.ndarray],
@@ -262,6 +277,7 @@ def add_context_gate_predictions(
                 arrays["pred_c"],
                 arrays["pred"],
             )
+        add_true_context_oracles(split_predictions, arrays)
         out[split] = split_predictions
     artifacts = {
         "scalar_state_dict": scalar_model.state_dict(),

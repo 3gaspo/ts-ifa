@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -106,6 +107,9 @@ def run() -> None:
             sys.argv = old_argv
         for path in paths.values():
             assert Path(path).exists(), path
+        config = json.loads(paths["config"].read_text(encoding="utf-8"))
+        assert config["parameters"]["total"] > 0
+        assert config["parameters"]["trainable"] == config["parameters"]["total"]
     print("TS-IFA training smoke checks passed")
 
 

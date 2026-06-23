@@ -10,6 +10,24 @@ import torch.nn as nn
 from einops import rearrange, repeat
 
 
+def parameter_counts(model: nn.Module) -> tuple[int, int]:
+    """Return total and trainable parameters, including wrapped pipelines.
+
+    ForecastModel registers ordinary PyTorch backbones as ``base_model``. The
+    Chronos pipeline, however, owns its PyTorch module under ``pipeline.model``
+    and is not itself an ``nn.Module``, so it needs to be unwrapped explicitly.
+    """
+    target = getattr(model, "base_model", model)
+    pipeline_model = getattr(getattr(target, "pipeline", None), "model", None)
+    if isinstance(pipeline_model, nn.Module):
+        target = pipeline_model
+    parameters = list(target.parameters())
+    return (
+        sum(parameter.numel() for parameter in parameters),
+        sum(parameter.numel() for parameter in parameters if parameter.requires_grad),
+    )
+
+
 class NoNormalization(nn.Module):
     name = "none"
 

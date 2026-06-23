@@ -88,5 +88,5 @@ for dataset in "${DATASETS[@]}"; do
     echo "$(date -Is) setting done dataset=$dataset lags=$L horizon=$H"
   done
 done
-srun python -m ts_ifa.results_table "$OUT_ROOT" --metric mse --split eval
+srun python -m ts_ifa.results_table "$OUT_ROOT" --metric mse --split eval --reference chronos
 echo "$(date -Is) job done kind=ts_ifa_training"

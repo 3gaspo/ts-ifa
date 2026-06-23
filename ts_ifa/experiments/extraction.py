@@ -27,6 +27,7 @@ from ..data.neighbors import (
     period_eval_dates,
     search_neighbors,
 )
+from ..models.models import parameter_counts
 from ..visu import plot_series
 from .runtime import log_experiment_separator, setup_logging
 
@@ -554,7 +555,14 @@ def main() -> dict[str, Path]:
         device=device,
         model_kwargs=load_json_kwargs(args.model_kwargs),
     )
-    LOGGER.info("model load done device=%s", device)
+    total_parameters, trainable_parameters = parameter_counts(model)
+    LOGGER.info(
+        "model load done name=%s device=%s parameters_total=%s parameters_trainable=%s",
+        args.model,
+        device,
+        f"{total_parameters:,}",
+        f"{trainable_parameters:,}",
+    )
     out = run_dir(args.output_dir, args.save_name)
     if args.retrieval_mode == "fixed" and args.full_online_history:
         raise ValueError("--full-online-history is only valid with --retrieval-mode online")

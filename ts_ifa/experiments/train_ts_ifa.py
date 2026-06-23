@@ -16,6 +16,7 @@ from einops import rearrange
 from torch.utils.data import DataLoader, Dataset
 
 from ..data.load_dataset_model import resolve_device, set_seed
+from ..models.models import parameter_counts
 from ..models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
 from .runtime import log_experiment_separator, setup_logging
 
@@ -398,12 +399,18 @@ def main() -> dict[str, Path]:
     )
     device = resolve_device(args.device)
     model = TimeSeriesInformedForecastingAdapter(config).to(device)
+    total_parameters, trainable_parameters = parameter_counts(model)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,
         weight_decay=args.weight_decay,
     )
-    LOGGER.info("model ready device=%s", device)
+    LOGGER.info(
+        "model ready name=TS-IFA device=%s parameters_total=%s parameters_trainable=%s",
+        device,
+        f"{total_parameters:,}",
+        f"{trainable_parameters:,}",
+    )
 
     history: list[dict[str, Any]] = []
     eps = 1e-8
@@ -472,6 +479,10 @@ def main() -> dict[str, Path]:
             "model_state_dict": model.state_dict(),
             "config": asdict(config),
             "model_name": "TS-IFA",
+            "parameter_counts": {
+                "total": total_parameters,
+                "trainable": trainable_parameters,
+            },
             "normalization": args.normalization,
             "train_payloads": [str(train_payload_path), str(oracle_payload_path)],
             "eval_payload": str(eval_payload_path) if eval_payload_path else None,
@@ -487,6 +498,10 @@ def main() -> dict[str, Path]:
         {
             "name": "TS-IFA",
             "model": asdict(config),
+            "parameters": {
+                "total": total_parameters,
+                "trainable": trainable_parameters,
+            },
             "training": {
                 "optimizer": "AdamW",
                 "lr": args.lr,
