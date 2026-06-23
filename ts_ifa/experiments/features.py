@@ -14,7 +14,7 @@ import torch
 from einops import rearrange, repeat
 
 from ..visu import plot_feature_scatter
-from .runtime import setup_logging
+from .runtime import log_experiment_separator, setup_logging
 
 
 LOGGER = logging.getLogger(__name__)
@@ -192,6 +192,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> dict[str, Path]:
     args = parse_args()
     setup_logging()
+    log_experiment_separator(LOGGER)
     started = perf_counter()
     prefixes = [part.strip() for part in args.prefixes.replace(";", ",").split(",") if part.strip()]
     output_dir = args.output_dir or str(Path(args.input_dir) / "feature_analysis")
@@ -202,6 +203,7 @@ def main() -> dict[str, Path]:
     outputs = save_feature_outputs(frame, output_dir)
     LOGGER.info("outputs saved dir=%s", output_dir)
     LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
+    log_experiment_separator(LOGGER)
     return outputs
 
 

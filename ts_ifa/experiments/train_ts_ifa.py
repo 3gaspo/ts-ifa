@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from ..data.load_dataset_model import resolve_device, set_seed
 from ..models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
-from .runtime import setup_logging
+from .runtime import log_experiment_separator, setup_logging
 
 
 LOGGER = logging.getLogger(__name__)
@@ -333,6 +333,7 @@ def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, Path]:
 def main() -> dict[str, Path]:
     args = parse_args()
     setup_logging()
+    log_experiment_separator(LOGGER)
     experiment_start = perf_counter()
     set_seed(args.seed)
     train_payload_path, oracle_payload_path, eval_payload_path, output_dir = resolve_paths(args)
@@ -500,6 +501,7 @@ def main() -> dict[str, Path]:
     )
     LOGGER.info("outputs saved dir=%s", output_dir)
     LOGGER.info("experiment done seconds=%.2f", perf_counter() - experiment_start)
+    log_experiment_separator(LOGGER)
     return {
         "checkpoint": checkpoint_path,
         "history": history_path,

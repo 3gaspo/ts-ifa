@@ -14,7 +14,7 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-from .runtime import setup_logging
+from .runtime import log_experiment_separator, setup_logging
 
 
 LOGGER = logging.getLogger(__name__)
@@ -310,6 +310,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> dict[str, Path]:
     args = parse_args()
     setup_logging()
+    log_experiment_separator(LOGGER)
     started = perf_counter()
     input_dir = Path(args.input_dir).expanduser()
     output_dir = Path(args.output_dir).expanduser() if args.output_dir else input_dir / "baseline_adapters"
@@ -372,6 +373,7 @@ def main() -> dict[str, Path]:
     )
     LOGGER.info("outputs saved dir=%s", output_dir)
     LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
+    log_experiment_separator(LOGGER)
     return {"csv": csv_path, "json": json_path, "artifacts": artifact_path}
 
 

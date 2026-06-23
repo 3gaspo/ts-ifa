@@ -131,7 +131,10 @@ are shown. These can independently be disabled with `--no-bold`,
 also available. The generated table uses the LaTeX `booktabs`, `multirow`, and
 `graphicx` packages.
 
-Experiment entry points log their identity once, then concise stage start/completion messages, throttled training progress, output location, and total runtime. They do not print full repeated configurations.
+Experiment entry points surround each run with a shared separator, log their
+identity once, then emit concise stage start/completion messages, throttled
+training progress, output location, and total runtime. They do not print full
+repeated configurations.
 
 ## Outputs
 

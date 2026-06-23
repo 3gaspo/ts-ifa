@@ -30,7 +30,7 @@ from ..visu import (
     plot_prediction_example,
     plot_user_error_scatter,
 )
-from .runtime import setup_logging
+from .runtime import log_experiment_separator, setup_logging
 
 
 LOGGER = logging.getLogger(__name__)
@@ -190,6 +190,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> dict[str, Path]:
     args = parse_args()
     setup_logging()
+    log_experiment_separator(LOGGER)
     started = perf_counter()
     dataset_name = args.dataset_name or Path(args.csv).stem
     LOGGER.info(
@@ -276,6 +277,7 @@ def main() -> dict[str, Path]:
         save_plots(losses, payloads, out)
     LOGGER.info("outputs saved dir=%s", out)
     LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
+    log_experiment_separator(LOGGER)
     return {"losses": csv_path, "summary": summary_path, "payload": payload_path}
 
 
