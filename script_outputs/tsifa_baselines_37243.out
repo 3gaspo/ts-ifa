@@ -1,0 +1,15 @@
+2026-06-23T14:48:30+02:00 job start kind=baseline_sweep
+2026-06-23T14:48:30+02:00 setting start dataset=electricity lags=168 horizon=24
+2026-06-23 14:48:33,799 INFO [__main__] experiment start kind=univariate dataset=electricity model=persistence lags=168 horizon=24
+2026-06-23 14:48:34,059 INFO [__main__] dataset load start
+2026-06-23 14:48:35,066 INFO [__main__] dataset load done dates=26304 users=313
+2026-06-23 14:48:35,067 INFO [__main__] model load start
+2026-06-23 14:48:35,067 INFO [__main__] model load done device=cuda
+2026-06-23 14:48:35,078 INFO [__main__] evaluation start split=eval queries=10
+2026-06-23 14:49:17,443 INFO [__main__] evaluation done split=eval
+2026-06-23 14:49:18,322 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/168_24/direct/persistence
+2026-06-23 14:49:18,322 INFO [__main__] experiment done seconds=44.52
+2026-06-23 14:49:21,788 INFO [__main__] experiment start kind=univariate dataset=electricity model=chronos lags=168 horizon=24
+2026-06-23 14:49:22,049 INFO [__main__] dataset load start
+2026-06-23 14:49:22,784 INFO [__main__] dataset load done dates=26304 users=313
+2026-06-23 14:49:22,784 INFO [__main__] model load start
