@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -12,40 +14,26 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-try:
-    from .load_dataset_model import (
-        load_csv_dataset,
-        load_json_kwargs,
-        load_pretrained_model,
-        resolve_device,
-        run_dir,
-        set_seed,
-        split_bounds,
-    )
-    from .neighbors import period_eval_dates
-    from .visu import (
-        plot_error_distribution,
-        plot_horizon_errors,
-        plot_prediction_example,
-        plot_user_error_scatter,
-    )
-except ImportError:  # pragma: no cover - direct script execution
-    from load_dataset_model import (
-        load_csv_dataset,
-        load_json_kwargs,
-        load_pretrained_model,
-        resolve_device,
-        run_dir,
-        set_seed,
-        split_bounds,
-    )
-    from neighbors import period_eval_dates
-    from visu import (
-        plot_error_distribution,
-        plot_horizon_errors,
-        plot_prediction_example,
-        plot_user_error_scatter,
-    )
+from ..data.load_dataset_model import (
+    load_csv_dataset,
+    load_json_kwargs,
+    load_pretrained_model,
+    resolve_device,
+    run_dir,
+    set_seed,
+    split_bounds,
+)
+from ..data.neighbors import period_eval_dates
+from ..visu import (
+    plot_error_distribution,
+    plot_horizon_errors,
+    plot_prediction_example,
+    plot_user_error_scatter,
+)
+from .runtime import setup_logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _loss_tensors(
@@ -186,14 +174,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--lags", type=int, required=True)
     parser.add_argument("--horizon", type=int, required=True)
-    parser.add_argument("--splits", default="0.6,0.2,0.2")
+    parser.add_argument("--splits", default="0.3,0.35,0.15,0.2")
     parser.add_argument("--eval-stride", type=int, default=1)
     parser.add_argument(
         "--eval-splits",
-        default="valid,test",
-        help="Any of train,valid,test separated by comma/semicolon",
+        default="eval",
+        help="Any of train,oracle,eval separated by comma/semicolon",
     )
-    parser.add_argument("--output-dir", default="outputs/extraction_univariate")
+    parser.add_argument("--output-dir", default="outputs/results")
     parser.add_argument("--save-name", default="univariate")
     parser.add_argument("--seed", type=int, default=None)
     return parser.parse_args()
@@ -201,7 +189,18 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> dict[str, Path]:
     args = parse_args()
+    setup_logging()
+    started = perf_counter()
+    dataset_name = args.dataset_name or Path(args.csv).stem
+    LOGGER.info(
+        "experiment start kind=univariate dataset=%s model=%s lags=%s horizon=%s",
+        dataset_name,
+        args.model,
+        args.lags,
+        args.horizon,
+    )
     set_seed(args.seed)
+    LOGGER.info("dataset load start")
     dataset = load_csv_dataset(
         args.csv,
         dataset_name=args.dataset_name,
@@ -214,13 +213,15 @@ def main() -> dict[str, Path]:
         aggr=args.aggr,
         aggr_period=args.aggr_period,
     )
-    t0_end, t1_end, t2_end = split_bounds(dataset.n_dates, args.splits)
+    LOGGER.info("dataset load done dates=%s users=%s", dataset.n_dates, dataset.n_users)
+    t0_end, t1_end, t2_end, t3_end = split_bounds(dataset.n_dates, args.splits)
     split_ranges = {
-        "train": (0, t0_end),
-        "valid": (t0_end, t1_end),
-        "test": (t1_end, t2_end),
+        "train": (t0_end, t1_end),
+        "oracle": (t1_end, t2_end),
+        "eval": (t2_end, t3_end),
     }
     selected = [part.strip() for part in args.eval_splits.replace(";", ",").split(",") if part.strip()]
+    LOGGER.info("model load start")
     model = load_pretrained_model(
         args.model,
         lags=args.lags,
@@ -232,6 +233,7 @@ def main() -> dict[str, Path]:
         model_kwargs=load_json_kwargs(args.model_kwargs),
     )
     device = resolve_device(args.device)
+    LOGGER.info("model load done device=%s", device)
     out = run_dir(args.output_dir, args.save_name)
 
     frames = []
@@ -248,6 +250,7 @@ def main() -> dict[str, Path]:
             horizon=args.horizon,
             stride=args.eval_stride,
         )
+        LOGGER.info("evaluation start split=%s queries=%s", split, len(dates))
         frame, payload = evaluate_split(
             dataset,
             model,
@@ -259,6 +262,7 @@ def main() -> dict[str, Path]:
         )
         frames.append(frame)
         payloads[split] = payload
+        LOGGER.info("evaluation done split=%s", split)
 
     losses = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     csv_path = out / "univariate_losses.csv"
@@ -270,6 +274,8 @@ def main() -> dict[str, Path]:
     torch.save(payloads, payload_path)
     if not losses.empty:
         save_plots(losses, payloads, out)
+    LOGGER.info("outputs saved dir=%s", out)
+    LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
     return {"losses": csv_path, "summary": summary_path, "payload": payload_path}
 
 

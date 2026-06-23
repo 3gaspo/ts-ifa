@@ -3,47 +3,35 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import numpy as np
 import torch
 from einops import rearrange
 
-try:
-    from .load_dataset_model import (
-        load_csv_dataset,
-        load_json_kwargs,
-        load_pretrained_model,
-        resolve_device,
-        run_dir,
-        set_seed,
-        split_bounds,
-    )
-    from .neighbors import (
-        aligned_store_dates,
-        build_window_batch,
-        period_eval_dates,
-        search_neighbors,
-    )
-    from .visu import plot_series
-except ImportError:  # pragma: no cover - direct script execution
-    from load_dataset_model import (
-        load_csv_dataset,
-        load_json_kwargs,
-        load_pretrained_model,
-        resolve_device,
-        run_dir,
-        set_seed,
-        split_bounds,
-    )
-    from neighbors import (
-        aligned_store_dates,
-        build_window_batch,
-        period_eval_dates,
-        search_neighbors,
-    )
-    from visu import plot_series
+from ..data.load_dataset_model import (
+    load_csv_dataset,
+    load_json_kwargs,
+    load_pretrained_model,
+    resolve_device,
+    run_dir,
+    set_seed,
+    split_bounds,
+)
+from ..data.neighbors import (
+    aligned_store_dates,
+    build_window_batch,
+    period_eval_dates,
+    search_neighbors,
+)
+from ..visu import plot_series
+from .runtime import setup_logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _empty_neighbor_tensors(
@@ -89,6 +77,78 @@ def _predict(
     return rearrange(prediction, "user 1 horizon -> user horizon")
 
 
+def store_dates_for_query(
+    query_t: int,
+    *,
+    args: argparse.Namespace,
+    n_users: int,
+    fixed_store_start: int,
+    fixed_store_end: int,
+) -> np.ndarray:
+    common = {
+        "lags": args.lags,
+        "horizon": args.horizon,
+        "train_stride": args.train_stride,
+        "n_users": n_users,
+        "period": args.period,
+        "store_start": fixed_store_start,
+        "store_end": fixed_store_end,
+        "align_period": not args.no_align_period,
+        "history_start": args.store_start_date,
+        "history_end": args.store_end_date,
+    }
+    fixed_reference = aligned_store_dates(
+        query_t,
+        online=False,
+        min_store_dates=0,
+        max_store_dates=None,
+        max_store_windows=None,
+        **common,
+    )
+    reference_size = len(fixed_reference)
+    max_store_dates = args.max_store_dates
+    if max_store_dates is None and not args.full_online_history:
+        max_store_dates = reference_size
+    min_store_dates = args.min_store_dates
+    if min_store_dates is None:
+        min_store_dates = max_store_dates if max_store_dates is not None else reference_size
+    return aligned_store_dates(
+        query_t,
+        online=args.retrieval_mode == "online",
+        min_store_dates=min_store_dates,
+        max_store_dates=max_store_dates,
+        max_store_windows=args.max_store_windows,
+        **common,
+    )
+
+
+def eligible_query_dates(
+    dates: np.ndarray,
+    *,
+    args: argparse.Namespace,
+    n_users: int,
+    fixed_store_start: int,
+    fixed_store_end: int,
+) -> np.ndarray:
+    if args.neighbors == 0:
+        return dates
+    eligible = [
+        int(query_t)
+        for query_t in dates
+        if len(
+            store_dates_for_query(
+                int(query_t),
+                args=args,
+                n_users=n_users,
+                fixed_store_start=fixed_store_start,
+                fixed_store_end=fixed_store_end,
+            )
+        )
+        > 0
+    ]
+    return np.asarray(eligible, dtype=np.int64)
+
+
 def extract_period(
     *,
     dataset,
@@ -128,6 +188,8 @@ def extract_period(
     query_user_idx = torch.empty((n_eval, n_users), dtype=torch.long)
     neighbor_t = torch.empty((n_eval, n_users, k), dtype=torch.long)
     neighbor_user_idx = torch.empty((n_eval, n_users, k), dtype=torch.long)
+    store_date_count = torch.zeros((n_eval, n_users), dtype=torch.long)
+    store_window_count = torch.zeros((n_eval, n_users), dtype=torch.long)
 
     for i, t_raw in enumerate(eval_dates):
         t = int(t_raw)
@@ -179,18 +241,12 @@ def extract_period(
             neighbor_user_idx[i] = empty["neighbor_user"]
             continue
 
-        store_dates = aligned_store_dates(
+        store_dates = store_dates_for_query(
             t,
-            lags=lags,
-            horizon=horizon,
-            train_stride=args.train_stride,
+            args=args,
             n_users=n_users,
-            period=args.period,
-            store_start=store_start,
-            store_end=store_end,
-            online=args.online,
-            align_period=not args.no_align_period,
-            max_train_windows=args.max_train_windows,
+            fixed_store_start=store_start,
+            fixed_store_end=store_end,
         )
         store = build_window_batch(
             dataset,
@@ -203,6 +259,8 @@ def extract_period(
             normalize=not args.no_feature_normalization,
             pool_representation=args.pool_representation,
         )
+        store_date_count[i] = len(store_dates)
+        store_window_count[i] = len(store_dates) * n_users
         distances, indices = search_neighbors(
             query.features,
             store.features,
@@ -263,7 +321,7 @@ def extract_period(
         neighbor_user_idx[i] = neighbor_users
 
         if args.verbose and (i == 0 or (i + 1) % 25 == 0 or i + 1 == n_eval):
-            print(f"{prefix}: processed {i + 1}/{n_eval} dates")
+            LOGGER.info("extraction progress split=%s dates=%s/%s", prefix, i + 1, n_eval)
 
     prediction_payload = {
         f"{prefix}_dates": torch.as_tensor(eval_dates, dtype=torch.long),
@@ -280,7 +338,18 @@ def extract_period(
         f"{prefix}_query_user_idx": query_user_idx,
         f"{prefix}_neighbor_t": neighbor_t,
         f"{prefix}_neighbor_user_idx": neighbor_user_idx,
+        f"{prefix}_store_date_count": store_date_count,
+        f"{prefix}_store_window_count": store_window_count,
         f"{prefix}_retrieval_period": torch.tensor(args.period, dtype=torch.long),
+        f"{prefix}_retrieval_mode": args.retrieval_mode,
+        f"{prefix}_retrieval_limits": {
+            "min_store_dates": args.min_store_dates,
+            "max_store_dates": args.max_store_dates,
+            "max_store_windows": args.max_store_windows,
+            "full_online_history": args.full_online_history,
+            "store_start_date": args.store_start_date,
+            "store_end_date": args.store_end_date,
+        },
     }
     if ec_values is not None:
         prediction_payload[f"{prefix}_Ec_values"] = ec_values
@@ -318,9 +387,11 @@ def extract_period(
     torch.save(prediction_payload, output_dir / f"{prefix}_prediction_payload.pt")
     torch.save(features_payload, output_dir / f"{prefix}_features_payload.pt")
     if args.verbose:
-        print(
-            f"{prefix}: prediction payload {_payload_size_gb(prediction_payload):.3f} GB, "
-            f"feature payload {_payload_size_gb(features_payload):.3f} GB"
+        LOGGER.info(
+            "payload sizes split=%s prediction_gb=%.3f features_gb=%.3f",
+            prefix,
+            _payload_size_gb(prediction_payload),
+            _payload_size_gb(features_payload),
         )
     return prediction_payload, features_payload
 
@@ -352,18 +423,12 @@ def plot_neighbor_example(
         normalize=not args.no_feature_normalization,
         pool_representation=args.pool_representation,
     )
-    store_dates = aligned_store_dates(
+    store_dates = store_dates_for_query(
         t,
-        lags=args.lags,
-        horizon=args.horizon,
-        train_stride=args.train_stride,
+        args=args,
         n_users=dataset.n_users,
-        period=args.period,
-        store_start=store_start,
-        store_end=store_end,
-        online=args.online,
-        align_period=not args.no_align_period,
-        max_train_windows=args.max_train_windows,
+        fixed_store_start=store_start,
+        fixed_store_end=store_end,
     )
     store = build_window_batch(
         dataset,
@@ -414,21 +479,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--lags", type=int, required=True)
     parser.add_argument("--horizon", type=int, required=True)
-    parser.add_argument("--splits", default="0.6,0.2,0.2")
+    parser.add_argument("--splits", default="0.3,0.35,0.15,0.2")
     parser.add_argument("--train-stride", type=int, default=24)
     parser.add_argument("--eval-stride", type=int, default=24)
     parser.add_argument("--period", type=int, default=24)
     parser.add_argument("--neighbors", type=int, default=0)
     parser.add_argument("--distance-space", default="raw", choices=["raw", "fourier", "chronos", "patchtst", "model", "representation"])
     parser.add_argument("--distance-metric", default="euclidean", choices=["euclidean", "cosine", "pearson"])
-    parser.add_argument("--max-train-windows", type=int, default=None)
-    parser.add_argument("--online", action="store_true")
+    parser.add_argument("--retrieval-mode", default="online", choices=["online", "fixed"])
+    parser.add_argument("--min-store-dates", type=int, default=None)
+    parser.add_argument("--max-store-dates", type=int, default=None)
+    parser.add_argument(
+        "--max-store-windows",
+        "--max-train-windows",
+        dest="max_store_windows",
+        type=int,
+        default=None,
+    )
+    parser.add_argument("--full-online-history", action="store_true")
+    parser.add_argument("--store-start-date", type=int, default=None)
+    parser.add_argument("--store-end-date", type=int, default=None)
     parser.add_argument("--no-align-period", action="store_true")
     parser.add_argument("--no-feature-normalization", action="store_true")
     parser.add_argument("--pool-representation", action="store_true")
     parser.add_argument("--compute-ec", action="store_true", help="Also save neighbor-context residuals Ec")
     parser.add_argument("--search-chunk-size", type=int, default=512)
-    parser.add_argument("--output-dir", default="outputs/extraction_neighbors")
+    parser.add_argument("--output-dir", default="outputs/results")
     parser.add_argument("--save-name", default="neighbors")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--verbose", action="store_true")
@@ -437,7 +513,21 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> dict[str, Path]:
     args = parse_args()
+    setup_logging()
+    started = perf_counter()
+    dataset_name = args.dataset_name or Path(args.csv).stem
+    LOGGER.info(
+        "experiment start kind=extraction dataset=%s model=%s lags=%s horizon=%s neighbors=%s distance=%s/%s",
+        dataset_name,
+        args.model,
+        args.lags,
+        args.horizon,
+        args.neighbors,
+        args.distance_space,
+        args.distance_metric,
+    )
     set_seed(args.seed)
+    LOGGER.info("dataset load start")
     dataset = load_csv_dataset(
         args.csv,
         dataset_name=args.dataset_name,
@@ -450,7 +540,9 @@ def main() -> dict[str, Path]:
         aggr=args.aggr,
         aggr_period=args.aggr_period,
     )
+    LOGGER.info("dataset load done dates=%s users=%s", dataset.n_dates, dataset.n_users)
     device = resolve_device(args.device)
+    LOGGER.info("model load start")
     model = load_pretrained_model(
         args.model,
         lags=args.lags,
@@ -461,8 +553,30 @@ def main() -> dict[str, Path]:
         device=device,
         model_kwargs=load_json_kwargs(args.model_kwargs),
     )
+    LOGGER.info("model load done device=%s", device)
     out = run_dir(args.output_dir, args.save_name)
-    t0_end, t1_end, t2_end = split_bounds(dataset.n_dates, args.splits)
+    if args.retrieval_mode == "fixed" and args.full_online_history:
+        raise ValueError("--full-online-history is only valid with --retrieval-mode online")
+    if args.max_store_dates is not None and args.max_store_dates <= 0:
+        raise ValueError("--max-store-dates must be positive")
+    if args.min_store_dates is not None and args.min_store_dates < 0:
+        raise ValueError("--min-store-dates cannot be negative")
+    if args.max_store_windows is not None and args.max_store_windows <= 0:
+        raise ValueError("--max-store-windows must be positive")
+    if (
+        args.min_store_dates is not None
+        and args.max_store_dates is not None
+        and args.min_store_dates > args.max_store_dates
+    ):
+        raise ValueError("--min-store-dates cannot exceed --max-store-dates")
+    if (
+        args.store_start_date is not None
+        and args.store_end_date is not None
+        and args.store_start_date >= args.store_end_date
+    ):
+        raise ValueError("--store-start-date must be before --store-end-date")
+
+    t0_end, t1_end, t2_end, t3_end = split_bounds(dataset.n_dates, args.splits)
     train_eval_dates = period_eval_dates(
         t0_end,
         t1_end,
@@ -471,7 +585,7 @@ def main() -> dict[str, Path]:
         horizon=args.horizon,
         stride=args.eval_stride,
     )
-    eval_eval_dates = period_eval_dates(
+    oracle_eval_dates = period_eval_dates(
         t1_end,
         t2_end,
         n_dates=dataset.n_dates,
@@ -479,11 +593,48 @@ def main() -> dict[str, Path]:
         horizon=args.horizon,
         stride=args.eval_stride,
     )
+    eval_eval_dates = period_eval_dates(
+        t2_end,
+        t3_end,
+        n_dates=dataset.n_dates,
+        lags=args.lags,
+        horizon=args.horizon,
+        stride=args.eval_stride,
+    )
+    train_eval_dates = eligible_query_dates(
+        train_eval_dates,
+        args=args,
+        n_users=dataset.n_users,
+        fixed_store_start=0,
+        fixed_store_end=t0_end,
+    )
+    oracle_eval_dates = eligible_query_dates(
+        oracle_eval_dates,
+        args=args,
+        n_users=dataset.n_users,
+        fixed_store_start=0,
+        fixed_store_end=t0_end,
+    )
+    eval_eval_dates = eligible_query_dates(
+        eval_eval_dates,
+        args=args,
+        n_users=dataset.n_users,
+        fixed_store_start=0,
+        fixed_store_end=t0_end,
+    )
     if args.verbose:
-        print(f"dataset: dates={dataset.n_dates}, users={dataset.n_users}")
-        print(f"T0=[0,{t0_end}), T1=[{t0_end},{t1_end}), T2=[{t1_end},{t2_end})")
-        print(f"train queries={len(train_eval_dates)}, eval queries={len(eval_eval_dates)}")
+        LOGGER.info(
+            "split bounds t0=%s t1=%s t2=%s t3=%s train_queries=%s oracle_queries=%s eval_queries=%s",
+            t0_end,
+            t1_end,
+            t2_end,
+            t3_end,
+            len(train_eval_dates),
+            len(oracle_eval_dates),
+            len(eval_eval_dates),
+        )
 
+    LOGGER.info("extraction start split=train queries=%s", len(train_eval_dates))
     extract_period(
         dataset=dataset,
         model=model,
@@ -495,30 +646,49 @@ def main() -> dict[str, Path]:
         output_dir=out,
         device=device,
     )
+    LOGGER.info("extraction done split=train")
+    LOGGER.info("extraction start split=oracle queries=%s", len(oracle_eval_dates))
+    extract_period(
+        dataset=dataset,
+        model=model,
+        prefix="oracle",
+        eval_dates=oracle_eval_dates,
+        store_start=0,
+        store_end=t0_end,
+        args=args,
+        output_dir=out,
+        device=device,
+    )
+    LOGGER.info("extraction done split=oracle")
+    LOGGER.info("extraction start split=eval queries=%s", len(eval_eval_dates))
     extract_period(
         dataset=dataset,
         model=model,
         prefix="eval",
         eval_dates=eval_eval_dates,
         store_start=0,
-        store_end=t1_end,
+        store_end=t0_end,
         args=args,
         output_dir=out,
         device=device,
     )
+    LOGGER.info("extraction done split=eval")
     plot_neighbor_example(
         dataset=dataset,
         model=model,
         eval_dates=eval_eval_dates,
         store_start=0,
-        store_end=t1_end,
+        store_end=t0_end,
         args=args,
         output_dir=out,
         device=device,
     )
+    LOGGER.info("outputs saved dir=%s", out)
+    LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
     return {
         "run_dir": out,
         "train_prediction": out / "train_prediction_payload.pt",
+        "oracle_prediction": out / "oracle_prediction_payload.pt",
         "eval_prediction": out / "eval_prediction_payload.pt",
     }
 

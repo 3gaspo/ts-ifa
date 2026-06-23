@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
@@ -14,12 +15,12 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch.utils.data import DataLoader, Dataset
 
-from ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
+from ..data.load_dataset_model import resolve_device, set_seed
+from ..models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
+from .runtime import setup_logging
 
-try:
-    from load_dataset_model import resolve_device, set_seed
-except ImportError:  # pragma: no cover
-    from .load_dataset_model import resolve_device, set_seed
+
+LOGGER = logging.getLogger(__name__)
 
 
 def torch_load(path: str | Path) -> dict[str, Any]:
@@ -90,6 +91,39 @@ class PredictionPayloadDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return {key: value[index] for key, value in self.tensors.items()}
+
+    @classmethod
+    def concatenate(
+        cls,
+        datasets: list["PredictionPayloadDataset"],
+        *,
+        max_samples: int | None = None,
+    ) -> "PredictionPayloadDataset":
+        if not datasets:
+            raise ValueError("at least one training payload is required")
+        reference = datasets[0]
+        for dataset in datasets[1:]:
+            if (dataset.lags, dataset.horizon, dataset.neighbors) != (
+                reference.lags,
+                reference.horizon,
+                reference.neighbors,
+            ):
+                raise ValueError("train and oracle payload shapes are incompatible")
+        combined = cls.__new__(cls)
+        combined.prefix = "+".join(dataset.prefix for dataset in datasets)
+        combined.tensors = {
+            key: torch.cat([dataset.tensors[key] for dataset in datasets], dim=0)
+            for key in reference.tensors
+        }
+        if max_samples is not None:
+            combined.tensors = {
+                key: value[: int(max_samples)]
+                for key, value in combined.tensors.items()
+            }
+        combined.lags = reference.lags
+        combined.horizon = reference.horizon
+        combined.neighbors = reference.neighbors
+        return combined
 
 
 def query_stats(x: torch.Tensor, eps: float) -> tuple[torch.Tensor, torch.Tensor]:
@@ -222,13 +256,9 @@ def plot_loss_curve(history: list[dict[str, Any]], output_path: Path) -> None:
 
     epochs = [row["epoch"] for row in history]
     train_nmse = [row.get("train_nmse", row.get("train_prediction")) for row in history]
-    valid_epochs = [row["epoch"] for row in history if "eval_adapted_nmse" in row]
-    valid_nmse = [row["eval_adapted_nmse"] for row in history if "eval_adapted_nmse" in row]
 
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(epochs, train_nmse, label="train nMSE", linewidth=2)
-    if valid_nmse:
-        ax.plot(valid_epochs, valid_nmse, label="valid nMSE", linewidth=2)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("nMSE")
     ax.set_title("TS-IFA training")
@@ -241,8 +271,9 @@ def plot_loss_curve(history: list[dict[str, Any]], output_path: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", default=None, help="Directory with train/eval prediction payloads")
+    parser.add_argument("--input-dir", default=None, help="Directory with train/oracle/eval prediction payloads")
     parser.add_argument("--train-payload", default=None)
+    parser.add_argument("--oracle-payload", default=None)
     parser.add_argument("--eval-payload", default=None)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--epochs", type=int, default=20)
@@ -259,7 +290,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-eval-samples", type=int, default=None)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--grad-clip", type=float, default=1.0)
-    parser.add_argument("--eval-every", type=int, default=1)
     parser.add_argument("--residual-heads", type=int, default=4)
     parser.add_argument("--memory-heads", type=int, default=4)
     parser.add_argument("--mixture-heads", type=int, default=4)
@@ -274,14 +304,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
+def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, Path]:
     base = Path(args.input_dir).expanduser() if args.input_dir else None
     train_payload = Path(args.train_payload).expanduser() if args.train_payload else None
+    oracle_payload = Path(args.oracle_payload).expanduser() if args.oracle_payload else None
     eval_payload = Path(args.eval_payload).expanduser() if args.eval_payload else None
     if train_payload is None:
         if base is None:
             raise ValueError("pass --input-dir or --train-payload")
         train_payload = base / "train_prediction_payload.pt"
+    if oracle_payload is None:
+        if base is None:
+            raise ValueError("pass --input-dir or --oracle-payload")
+        oracle_payload = base / "oracle_prediction_payload.pt"
     if eval_payload is None and base is not None:
         candidate = base / "eval_prediction_payload.pt"
         eval_payload = candidate if candidate.exists() else None
@@ -292,16 +327,27 @@ def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     else:
         output_dir = train_payload.parent / "ts_ifa"
     output_dir.mkdir(parents=True, exist_ok=True)
-    return train_payload, eval_payload, output_dir
+    return train_payload, oracle_payload, eval_payload, output_dir
 
 
 def main() -> dict[str, Path]:
     args = parse_args()
+    setup_logging()
+    experiment_start = perf_counter()
     set_seed(args.seed)
-    train_payload_path, eval_payload_path, output_dir = resolve_paths(args)
-    train_dataset = PredictionPayloadDataset(
-        torch_load(train_payload_path),
-        prefix="train",
+    train_payload_path, oracle_payload_path, eval_payload_path, output_dir = resolve_paths(args)
+    LOGGER.info(
+        "experiment start kind=ts_ifa_train input=%s epochs=%s batch_size=%s",
+        train_payload_path.parent,
+        args.epochs,
+        args.batch_size,
+    )
+    LOGGER.info("payload load start")
+    train_dataset = PredictionPayloadDataset.concatenate(
+        [
+            PredictionPayloadDataset(torch_load(train_payload_path), prefix="train"),
+            PredictionPayloadDataset(torch_load(oracle_payload_path), prefix="oracle"),
+        ],
         max_samples=args.max_train_samples,
     )
     eval_dataset = None
@@ -311,6 +357,11 @@ def main() -> dict[str, Path]:
             prefix="eval",
             max_samples=args.max_eval_samples,
         )
+    LOGGER.info(
+        "payload load done train_samples=%s eval_samples=%s",
+        len(train_dataset),
+        len(eval_dataset) if eval_dataset is not None else 0,
+    )
 
     eval_batch_size = args.eval_batch_size or args.batch_size
     train_loader = DataLoader(
@@ -351,10 +402,13 @@ def main() -> dict[str, Path]:
         lr=args.lr,
         weight_decay=args.weight_decay,
     )
+    LOGGER.info("model ready device=%s", device)
 
     history: list[dict[str, Any]] = []
     eps = 1e-8
     start_time = perf_counter()
+    log_every = max(1, args.epochs // 20)
+    LOGGER.info("training start")
     for epoch in range(1, args.epochs + 1):
         model.train()
         totals = {"loss": 0.0, "prediction": 0.0, "regularization": 0.0, "residual": 0.0}
@@ -385,19 +439,19 @@ def main() -> dict[str, Path]:
             **{f"train_{key}": value / max(seen, 1) for key, value in totals.items()},
         }
         row["train_nmse"] = row["train_prediction"]
-        if eval_loader is not None and (epoch == 1 or epoch % args.eval_every == 0 or epoch == args.epochs):
-            row.update({f"eval_{key}": value for key, value in evaluate(
-                model,
-                eval_loader,
-                device=device,
-                normalization=args.normalization,
-                eps=eps,
-            ).items()})
         history.append(row)
-        print(json.dumps(row))
+        if epoch == 1 or epoch == args.epochs or epoch % log_every == 0:
+            LOGGER.info(
+                "training progress epoch=%s/%s train_nmse=%.6f",
+                epoch,
+                args.epochs,
+                row["train_nmse"],
+            )
+    LOGGER.info("training done seconds=%.2f", perf_counter() - start_time)
 
     final_eval = {}
     if eval_loader is not None:
+        LOGGER.info("evaluation start")
         final_eval = evaluate(
             model,
             eval_loader,
@@ -405,6 +459,7 @@ def main() -> dict[str, Path]:
             normalization=args.normalization,
             eps=eps,
         )
+        LOGGER.info("evaluation done adapted_nmse=%.6f", final_eval["adapted_nmse"])
 
     checkpoint_path = output_dir / "ts_ifa.pt"
     history_path = output_dir / "training_history.json"
@@ -417,7 +472,7 @@ def main() -> dict[str, Path]:
             "config": asdict(config),
             "model_name": "TS-IFA",
             "normalization": args.normalization,
-            "train_payload": str(train_payload_path),
+            "train_payloads": [str(train_payload_path), str(oracle_payload_path)],
             "eval_payload": str(eval_payload_path) if eval_payload_path else None,
             "epochs": args.epochs,
         },
@@ -443,6 +498,8 @@ def main() -> dict[str, Path]:
             },
         },
     )
+    LOGGER.info("outputs saved dir=%s", output_dir)
+    LOGGER.info("experiment done seconds=%.2f", perf_counter() - experiment_start)
     return {
         "checkpoint": checkpoint_path,
         "history": history_path,

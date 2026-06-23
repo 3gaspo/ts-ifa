@@ -31,13 +31,8 @@ def _existing_path(*candidates: str | Path | None) -> Path | None:
 
 
 def _default_chronos_weights() -> Path | None:
-    repo_root = Path(__file__).resolve().parent
-    return _existing_path(
-        repo_root / "weights" / "chronos2",
-        repo_root / "timetensors_old" / "models" / "sota" / "chronos2" / "weights",
-        repo_root / "timetensors_old" / "src" / "timetensor" / "sota" / "chronos2" / "weights",
-        repo_root / "timetensor_oldest" / "src" / "timetensor" / "sota" / "chronos2" / "weights",
-    )
+    repo_root = Path(__file__).resolve().parents[2]
+    return _existing_path(repo_root.parent / "weights" / "chronos2")
 
 
 def _broadcast(value: torch.Tensor | None, batch_size: int) -> torch.Tensor | None:
@@ -96,7 +91,10 @@ class Chronos(nn.Module):
 
         model_path = Path(weights_path).expanduser().resolve() if weights_path else _default_chronos_weights()
         if model_path is None:
-            raise FileNotFoundError("Chronos weights were not found; pass weights_path")
+            raise FileNotFoundError(
+                "Chronos weights were not found. Pass weights_path or place them "
+                "under ../weights/chronos2."
+            )
         pipeline_cls = _import_chronos()
         self.pipeline = pipeline_cls.from_pretrained(
             str(model_path),

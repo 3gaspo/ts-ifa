@@ -9,10 +9,7 @@ import numpy as np
 import torch
 from einops import rearrange
 
-try:
-    from .load_dataset_model import CsvTimeSeries
-except ImportError:  # pragma: no cover - direct script execution
-    from load_dataset_model import CsvTimeSeries
+from .load_dataset_model import CsvTimeSeries
 
 DistanceMetric = Literal["euclidean", "cosine", "pearson"]
 
@@ -78,12 +75,17 @@ def period_eval_dates(
 def _trim_dates(
     dates: np.ndarray,
     *,
-    max_train_windows: int | None,
+    max_store_dates: int | None,
+    max_store_windows: int | None,
     n_users: int,
 ) -> np.ndarray:
-    if max_train_windows is None or len(dates) == 0:
+    if len(dates) == 0:
         return dates
-    allowed_steps = int(max_train_windows) // int(n_users)
+    allowed_steps = len(dates)
+    if max_store_dates is not None:
+        allowed_steps = min(allowed_steps, int(max_store_dates))
+    if max_store_windows is not None:
+        allowed_steps = min(allowed_steps, int(max_store_windows) // int(n_users))
     if allowed_steps <= 0:
         return np.array([], dtype=np.int64)
     return dates[-allowed_steps:]
@@ -99,9 +101,13 @@ def aligned_store_dates(
     period: int,
     store_start: int,
     store_end: int,
-    online: bool = False,
+    online: bool = True,
     align_period: bool = True,
-    max_train_windows: int | None = None,
+    min_store_dates: int = 0,
+    max_store_dates: int | None = None,
+    max_store_windows: int | None = None,
+    history_start: int | None = None,
+    history_end: int | None = None,
 ) -> np.ndarray:
     """Return datastore start dates aligned to the query phase.
 
@@ -120,6 +126,13 @@ def aligned_store_dates(
             return np.array([], dtype=np.int64)
         first = int(store_start)
 
+    if history_start is not None:
+        first = max(first, int(history_start))
+    if history_end is not None:
+        last = min(last, int(history_end) - (int(lags) + int(horizon)))
+    if last < first:
+        return np.array([], dtype=np.int64)
+
     if align_period:
         if period <= 0:
             raise ValueError("period must be positive when align_period=True")
@@ -129,7 +142,14 @@ def aligned_store_dates(
             return np.array([], dtype=np.int64)
 
     dates = np.arange(first, last + 1, int(train_stride), dtype=np.int64)
-    return _trim_dates(dates, max_train_windows=max_train_windows, n_users=n_users)
+    if len(dates) < int(min_store_dates):
+        return np.array([], dtype=np.int64)
+    return _trim_dates(
+        dates,
+        max_store_dates=max_store_dates,
+        max_store_windows=max_store_windows,
+        n_users=n_users,
+    )
 
 
 def build_window_batch(

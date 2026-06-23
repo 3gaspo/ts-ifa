@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -11,10 +13,11 @@ import pandas as pd
 import torch
 from einops import rearrange, repeat
 
-try:
-    from .visu import plot_feature_scatter
-except ImportError:  # pragma: no cover - direct script execution
-    from visu import plot_feature_scatter
+from ..visu import plot_feature_scatter
+from .runtime import setup_logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _to_numpy(value: Any) -> np.ndarray:
@@ -93,6 +96,11 @@ def compute_split_features(
     if distance is not None:
         frame["distance_mean"] = distance
         frame["distance_std"] = _optional_std(prediction_payload, f"{prefix}_distance_x_xc")
+
+    for key in ("store_date_count", "store_window_count"):
+        values = _optional_mean(prediction_payload, f"{prefix}_{key}")
+        if values is not None:
+            frame[key] = values
 
     neighbor_user = prediction_payload.get(f"{prefix}_neighbor_user_idx")
     if neighbor_user is not None:
@@ -177,16 +185,24 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", required=True, help="Directory with *_prediction_payload.pt files")
     parser.add_argument("--output-dir", default=None, help="Defaults to <input-dir>/feature_analysis")
-    parser.add_argument("--prefixes", default="train,eval", help="Comma/semicolon-separated split prefixes")
+    parser.add_argument("--prefixes", default="train,oracle,eval", help="Comma/semicolon-separated split prefixes")
     return parser.parse_args()
 
 
 def main() -> dict[str, Path]:
     args = parse_args()
+    setup_logging()
+    started = perf_counter()
     prefixes = [part.strip() for part in args.prefixes.replace(";", ",").split(",") if part.strip()]
     output_dir = args.output_dir or str(Path(args.input_dir) / "feature_analysis")
+    LOGGER.info("experiment start kind=feature_analysis input=%s", args.input_dir)
+    LOGGER.info("feature table start splits=%s", ",".join(prefixes))
     frame = build_feature_table(args.input_dir, prefixes)
-    return save_feature_outputs(frame, output_dir)
+    LOGGER.info("feature table done rows=%s columns=%s", len(frame), len(frame.columns))
+    outputs = save_feature_outputs(frame, output_dir)
+    LOGGER.info("outputs saved dir=%s", output_dir)
+    LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
+    return outputs
 
 
 if __name__ == "__main__":

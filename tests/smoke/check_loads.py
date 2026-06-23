@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from load_dataset_model import load_csv_dataset, load_pretrained_model  # noqa: E402
+from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
+from ts_ifa.data.neighbors import aligned_store_dates  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,6 +51,46 @@ def main() -> None:
     )
     pred = persistence(x, future_covariates=future_cov)
     assert pred.shape == y.shape
+
+    assert split_bounds(100, "0.3,0.35,0.15,0.2") == (30, 65, 80, 100)
+    fixed_dates = aligned_store_dates(
+        80,
+        lags=4,
+        horizon=2,
+        train_stride=1,
+        n_users=2,
+        period=1,
+        store_start=0,
+        store_end=30,
+        online=False,
+    )
+    online_dates = aligned_store_dates(
+        80,
+        lags=4,
+        horizon=2,
+        train_stride=1,
+        n_users=2,
+        period=1,
+        store_start=0,
+        store_end=30,
+        min_store_dates=len(fixed_dates),
+        max_store_dates=len(fixed_dates),
+    )
+    assert len(online_dates) == len(fixed_dates)
+    assert online_dates[-1] == 80 - (4 + 2)
+    warmup_dates = aligned_store_dates(
+        20,
+        lags=4,
+        horizon=2,
+        train_stride=1,
+        n_users=2,
+        period=1,
+        store_start=0,
+        store_end=30,
+        min_store_dates=len(fixed_dates),
+        max_store_dates=len(fixed_dates),
+    )
+    assert len(warmup_dates) == 0
 
     if args.check_patchtst:
         patchtst = load_pretrained_model(

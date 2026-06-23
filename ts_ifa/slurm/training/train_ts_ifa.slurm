@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=tsifa_train
 #SBATCH --gres=gpu:1
-#SBATCH --output=tsifa_train_%j.out
-#SBATCH --error=tsifa_train_%j.err
+#SBATCH --output=script_outputs/tsifa_train_%j.out
+#SBATCH --error=script_outputs/tsifa_train_%j.err
 #SBATCH --time=23:00:00
 #SBATCH --partition=h100
 #SBATCH --mem=40000
@@ -12,19 +12,20 @@ source .venv/bin/activate
 export PYTHONPATH="$(pwd)"
 
 DATA_ROOT="../datasets"
-OUT_ROOT="outputs/ts_ifa"
-CHRONOS_WEIGHTS_PATH="timetensor_oldest/src/timetensor/sota/chronos2/weights"
+OUT_ROOT="outputs/results"
+CHRONOS_WEIGHTS_PATH="../weights/chronos2"
 ELECTRICITY_DROP_USERS="57;106;127;182;298;6;113;143"
 
 DATASETS=("electricity") # "traffic" "solar" "exchange_rate"
 SETTINGS=("168 24") # "672 168" "1344 336"
 
-SPLITS="0.3,0.5,0.2"
+SPLITS="0.3,0.35,0.15,0.2"
+RETRIEVAL_MODE="online"
 TRAIN_STRIDE=24
 EVAL_STRIDE=512
 PERIOD=24
 NEIGHBORS=10
-MAX_TRAIN_WINDOWS=5000
+MAX_STORE_WINDOWS=5000
 SEED=1
 
 EPOCHS=200
@@ -36,6 +37,7 @@ GAMMA=0.0
 
 CHRONOS_KWARGS="{\"weights_path\":\"$CHRONOS_WEIGHTS_PATH\",\"device_map\":\"cuda\",\"context_mode\":\"future\"}"
 
+echo "$(date -Is) job start kind=ts_ifa_training"
 for dataset in "${DATASETS[@]}"; do
   DATASET_DIR="$DATA_ROOT/$dataset"
   DATA_ARGS=()
@@ -44,10 +46,11 @@ for dataset in "${DATASETS[@]}"; do
   for setting in "${SETTINGS[@]}"; do
     read -r L H <<< "$setting"
     SETTING_OUT="$OUT_ROOT/$dataset/${L}_${H}"
-    SAVE_NAME="chronos_chronos_euclidean_${NEIGHBORS}_online"
+    SAVE_NAME="chronos_chronos_euclidean_${NEIGHBORS}_${RETRIEVAL_MODE}"
     RUN_DIR="$SETTING_OUT/$SAVE_NAME"
+    echo "$(date -Is) setting start dataset=$dataset lags=$L horizon=$H"
 
-    srun python extraction.py \
+    srun python -m ts_ifa.experiments.extraction \
       --csv "$DATASET_DIR" \
       --dataset-name "$dataset" \
       "${DATA_ARGS[@]}" \
@@ -60,8 +63,8 @@ for dataset in "${DATASETS[@]}"; do
       --neighbors "$NEIGHBORS" \
       --distance-space chronos \
       --distance-metric euclidean \
-      --max-train-windows "$MAX_TRAIN_WINDOWS" \
-      --online \
+      --max-store-windows "$MAX_STORE_WINDOWS" \
+      --retrieval-mode "$RETRIEVAL_MODE" \
       --pool-representation \
       --model chronos \
       --model-kwargs "$CHRONOS_KWARGS" \
@@ -71,7 +74,7 @@ for dataset in "${DATASETS[@]}"; do
       --save-name "$SAVE_NAME" \
       --seed "$SEED"
 
-    srun python train_ts_ifa.py \
+    srun python -m ts_ifa.experiments.train_ts_ifa \
       --input-dir "$RUN_DIR" \
       --epochs "$EPOCHS" \
       --batch-size "$BATCH_SIZE" \
@@ -82,5 +85,8 @@ for dataset in "${DATASETS[@]}"; do
       --normalization instance \
       --device gpu \
       --seed "$SEED"
+    echo "$(date -Is) setting done dataset=$dataset lags=$L horizon=$H"
   done
 done
+srun python -m ts_ifa.results_table "$OUT_ROOT" --metric mse --split eval
+echo "$(date -Is) job done kind=ts_ifa_training"

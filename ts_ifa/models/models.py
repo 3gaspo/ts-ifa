@@ -175,12 +175,8 @@ def load_model(
 
     Built-ins are ``persistence``, ``linear``, ``patchtst``, and ``chronos``.
     """
-    try:
-        from .chronos_model import Chronos
-        from .patchtst import PatchTST
-    except ImportError:  # pragma: no cover - direct script execution
-        from chronos_model import Chronos
-        from patchtst import PatchTST
+    from .chronos_model import Chronos
+    from .patchtst import PatchTST
 
     key = str(name).lower()
     registry = {

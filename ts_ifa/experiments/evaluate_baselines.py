@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import torch
 from einops import rearrange
+
+from .runtime import setup_logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def torch_load(path: str | Path) -> dict[str, Any]:
@@ -50,23 +57,6 @@ def flatten_payload(payload: dict[str, Any], prefix: str) -> dict[str, np.ndarra
         ).numpy(),
         "query_t": rearrange(payload[f"{prefix}_query_t"], "date user -> (date user)").numpy(),
     }
-
-
-def split_train_arrays(arrays: dict[str, np.ndarray], oracle_fraction: float) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
-    query_t = arrays["query_t"]
-    unique_dates = np.unique(query_t)
-    if len(unique_dates) < 2:
-        return arrays, arrays
-    n_oracle_dates = max(1, int(np.ceil(len(unique_dates) * float(oracle_fraction))))
-    n_oracle_dates = min(n_oracle_dates, len(unique_dates) - 1)
-    oracle_start = unique_dates[-n_oracle_dates]
-    fit_mask = query_t < oracle_start
-    gate_mask = ~fit_mask
-    return subset_arrays(arrays, fit_mask), subset_arrays(arrays, gate_mask)
-
-
-def subset_arrays(arrays: dict[str, np.ndarray], mask: np.ndarray) -> dict[str, np.ndarray]:
-    return {key: value[mask] if value.shape[0] == mask.shape[0] else value for key, value in arrays.items()}
 
 
 def distance_weights(arrays: dict[str, np.ndarray], eps: float = 1e-8) -> np.ndarray:
@@ -220,14 +210,9 @@ def predict_gate(model: TorchGate, features: np.ndarray) -> np.ndarray:
     return torch.sigmoid(logits).numpy()
 
 
-def candidate_names(predictions: dict[str, np.ndarray]) -> list[str]:
-    return [name for name in predictions if name != "vanilla"]
-
-
-def add_gate_predictions(
+def add_context_gate_predictions(
     base_predictions_by_split: dict[str, dict[str, np.ndarray]],
-    train_gate_predictions: dict[str, np.ndarray],
-    train_gate: dict[str, np.ndarray],
+    oracle_arrays: dict[str, np.ndarray],
     arrays_by_split: dict[str, dict[str, np.ndarray]],
     *,
     epochs: int,
@@ -235,60 +220,54 @@ def add_gate_predictions(
     weight_decay: float,
     seed: int,
     train_horizon_gate: bool,
-) -> dict[str, dict[str, np.ndarray]]:
-    base_loss = (train_gate["y"] - train_gate["pred"]) ** 2
-    features_train = gate_features(train_gate)
-
-    scalar_models = {}
-    horizon_models = {}
-    for offset, name in enumerate(candidate_names(train_gate_predictions)):
-        candidate_loss = (train_gate["y"] - train_gate_predictions[name]) ** 2
-        scalar_label = (candidate_loss.mean(axis=1) < base_loss.mean(axis=1)).astype(np.float32)[:, None]
-        scalar_models[name] = fit_gate(
+) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, Any]]:
+    base_loss = (oracle_arrays["y"] - oracle_arrays["pred"]) ** 2
+    context_loss = (oracle_arrays["y"] - oracle_arrays["pred_c"]) ** 2
+    features_train = gate_features(oracle_arrays)
+    scalar_label = (context_loss.mean(axis=1) < base_loss.mean(axis=1)).astype(np.float32)[:, None]
+    scalar_model = fit_gate(
+        features_train,
+        scalar_label,
+        epochs=epochs,
+        lr=lr,
+        weight_decay=weight_decay,
+        seed=seed,
+    )
+    horizon_model = None
+    if train_horizon_gate:
+        horizon_label = (context_loss < base_loss).astype(np.float32)
+        horizon_model = fit_gate(
             features_train,
-            scalar_label,
+            horizon_label,
             epochs=epochs,
             lr=lr,
             weight_decay=weight_decay,
-            seed=seed + offset,
+            seed=seed + 1,
         )
-        if train_horizon_gate:
-            horizon_label = (candidate_loss < base_loss).astype(np.float32)
-            horizon_models[name] = fit_gate(
-                features_train,
-                horizon_label,
-                epochs=epochs,
-                lr=lr,
-                weight_decay=weight_decay,
-                seed=seed + 1000 + offset,
-            )
 
     out: dict[str, dict[str, np.ndarray]] = {}
     for split, arrays in arrays_by_split.items():
         split_predictions = dict(base_predictions_by_split[split])
         features = gate_features(arrays)
-        for name, scalar_model in scalar_models.items():
-            scalar_prob = predict_gate(scalar_model, features)
-            gated = np.where(
-                scalar_prob >= 0.5,
-                base_predictions_by_split[split][name],
-                arrays["pred"],
-            )
-            split_predictions[f"oracle(scalar)_{name}"] = gated
-            if name == "context_conditioned":
-                split_predictions["gated_context_scalar"] = gated
-        for name, horizon_model in horizon_models.items():
+        scalar_prob = predict_gate(scalar_model, features)
+        split_predictions["gated_context_scalar"] = np.where(
+            scalar_prob >= 0.5,
+            arrays["pred_c"],
+            arrays["pred"],
+        )
+        if horizon_model is not None:
             horizon_prob = predict_gate(horizon_model, features)
-            gated = np.where(
+            split_predictions["gated_context_horizon"] = np.where(
                 horizon_prob >= 0.5,
-                base_predictions_by_split[split][name],
+                arrays["pred_c"],
                 arrays["pred"],
             )
-            split_predictions[f"oracle(horizon)_{name}"] = gated
-            if name == "context_conditioned":
-                split_predictions["gated_context_horizon"] = gated
         out[split] = split_predictions
-    return out
+    artifacts = {
+        "scalar_state_dict": scalar_model.state_dict(),
+        "horizon_state_dict": horizon_model.state_dict() if horizon_model is not None else None,
+    }
+    return out, artifacts
 
 
 def evaluate_predictions(split: str, arrays: dict[str, np.ndarray], predictions: dict[str, np.ndarray]) -> list[dict[str, Any]]:
@@ -318,9 +297,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", required=True)
     parser.add_argument("--output-dir", default=None)
-    parser.add_argument("--prefixes", default="train,eval")
+    parser.add_argument("--prefixes", default="train,oracle,eval")
     parser.add_argument("--l2", type=float, default=1e-3)
-    parser.add_argument("--oracle-train-fraction", type=float, default=0.15)
     parser.add_argument("--gate-epochs", type=int, default=300)
     parser.add_argument("--gate-lr", type=float, default=1e-2)
     parser.add_argument("--gate-weight-decay", type=float, default=1e-3)
@@ -331,30 +309,36 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> dict[str, Path]:
     args = parse_args()
+    setup_logging()
+    started = perf_counter()
     input_dir = Path(args.input_dir).expanduser()
     output_dir = Path(args.output_dir).expanduser() if args.output_dir else input_dir / "baseline_adapters"
     output_dir.mkdir(parents=True, exist_ok=True)
+    LOGGER.info("experiment start kind=baseline_adapters input=%s", input_dir)
 
     prefixes = [part.strip() for part in args.prefixes.replace(";", ",").split(",") if part.strip()]
+    LOGGER.info("payload load start")
     arrays_by_split = {
         prefix: flatten_payload(torch_load(input_dir / f"{prefix}_prediction_payload.pt"), prefix)
         for prefix in prefixes
     }
-    if "train" not in arrays_by_split:
-        raise ValueError("baseline fitting requires a train payload")
+    missing = {"train", "oracle", "eval"} - set(arrays_by_split)
+    if missing:
+        raise ValueError(f"baseline evaluation requires train, oracle, and eval payloads; missing {sorted(missing)}")
+    LOGGER.info("payload load done splits=%s", ",".join(prefixes))
 
-    fit_train, gate_train = split_train_arrays(arrays_by_split["train"], args.oracle_train_fraction)
-    artifacts = fit_baseline_adapters(fit_train, args.l2)
+    LOGGER.info("mixture fitting start")
+    artifacts = fit_baseline_adapters(arrays_by_split["train"], args.l2)
+    LOGGER.info("mixture fitting done")
 
     predictions_by_split_base = {
         split: predict_baseline_adapters(arrays, artifacts)
         for split, arrays in arrays_by_split.items()
     }
-    train_gate_predictions = predict_baseline_adapters(gate_train, artifacts)
-    predictions_by_split = add_gate_predictions(
+    LOGGER.info("context gate fitting start")
+    predictions_by_split, gate_artifacts = add_context_gate_predictions(
         predictions_by_split_base,
-        train_gate_predictions,
-        gate_train,
+        arrays_by_split["oracle"],
         arrays_by_split,
         epochs=args.gate_epochs,
         lr=args.gate_lr,
@@ -362,10 +346,11 @@ def main() -> dict[str, Path]:
         seed=args.seed,
         train_horizon_gate=args.train_horizon_gate,
     )
+    LOGGER.info("context gate fitting done horizon=%s", args.train_horizon_gate)
 
-    rows = []
-    for split, arrays in arrays_by_split.items():
-        rows.extend(evaluate_predictions(split, arrays, predictions_by_split[split]))
+    LOGGER.info("evaluation start split=eval")
+    rows = evaluate_predictions("eval", arrays_by_split["eval"], predictions_by_split["eval"])
+    LOGGER.info("evaluation done rows=%s", len(rows))
     frame = pd.DataFrame(rows)
     csv_path = output_dir / "baseline_metrics.csv"
     json_path = output_dir / "baseline_metrics.json"
@@ -375,6 +360,7 @@ def main() -> dict[str, Path]:
     torch.save(
         {
             "mix_artifacts": artifacts,
+            "context_gate_artifacts": gate_artifacts,
             "gate_config": {
                 "epochs": args.gate_epochs,
                 "lr": args.gate_lr,
@@ -384,6 +370,8 @@ def main() -> dict[str, Path]:
         },
         artifact_path,
     )
+    LOGGER.info("outputs saved dir=%s", output_dir)
+    LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
     return {"csv": csv_path, "json": json_path, "artifacts": artifact_path}
 
 

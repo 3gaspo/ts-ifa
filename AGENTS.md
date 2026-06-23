@@ -2,15 +2,15 @@
 
 ## Project Structure & Module Organization
 
-This repo implements baselines and TS-IFA from `latex_old/main.tex`; treat that LaTeX as prior design guidance that may evolve, and do not edit it unless asked. `timetensors_old/` and `timetensor_oldest/` contain reference code from prior repos. Core code lives at the root: `load_dataset_model.py` loads CSVs and model configs, `models.py` owns the shared wrapper/registry, `chronos_model.py` and `patchtst.py` hold model-specific wrappers, `neighbors.py` builds aligned windows and KNN features, `extraction.py` runs neighbor extraction, `features.py` summarizes payloads, `evaluate_baselines.py` runs notebook/LaTeX adapter baselines, and `ts_ifa.py` plus `train_ts_ifa.py` expose the payload-based adapter. `slurm/` contains cluster job scripts. `visu/` contains plotting helpers and notebooks. `tests/smoke/` is for tiny load checks only. Files with `old` in the name are temporary comparison references.
+This repo implements baselines and TS-IFA from the LaTeX design notes; treat that LaTeX as prior design guidance that may evolve, and do not edit it unless asked. Active code and scripts are under `ts_ifa/`: `data/` owns loading and retrieval, `models/` contains forecast backbones and the adapter, `experiments/` contains runnable pipelines and logging, `visu/` contains plotting helpers and notebooks, `slurm/` contains cluster jobs, and `compat/` contains temporary import shims. `tests/smoke/` remains at repository root for tiny local checks.
 
 ## Data Flow & Experiment Scope
 
-Input is a date-indexed CSV with target user columns and optional covariates. Windows use `(users, 1, lags)` inputs and `(users, 1, horizon)` targets. `experiment_univariate.py` evaluates direct baselines; `extraction.py` builds query/datastore windows, computes representations, searches neighbors, and saves payloads; `features.py` turns payloads into tables and plots. Full experiments run on a distant cluster from another PC, so keep local work focused on loading and shape checks.
+Input is a date-indexed CSV with target user columns and optional covariates. The default four-way protocol is T0 datastore (30%), T1 baseline training (35%), T2 context-gate training (15%), and T3 final evaluation (20%). Online retrieval is default and caps each query datastore to the aligned T0 capacity; fixed retrieval makes T1/T2/T3 fetch only from T0. Baseline mixtures fit T1, only the context-conditioned gate fits T2, TS-IFA fits T1+T2 without validation, and every final metric uses T3. Full experiments run on a distant cluster, so keep local work focused on loading and shape checks.
 
 ## SLURM Experiment Rules
 
-Full experiments are launched with files under `slurm/`. Follow the established cluster style: include the complete `#SBATCH` header, activate `.venv`, define configs directly near the top, loop over Bash `DATASETS` and `SETTINGS` arrays, and pass those values explicitly to Python entry points. Do not infer configs from path names, add `${VAR:-default}` environment fallbacks, or build generic launch frameworks. Keep each job limited to options used by this package and validate scripts with `bash -n`.
+Full experiments are launched from `ts_ifa/slurm/`, with separate subfolders by experiment type. Follow the established cluster style: include the complete `#SBATCH` header, write logs under `script_outputs/`, activate `.venv`, define configs directly near the top, loop over Bash `DATASETS` and `SETTINGS` arrays, and pass those values explicitly to Python entry points. Store model results under `outputs/results/`; Hydra job metadata, if introduced, belongs under `outputs/hydra/`. Experiment logging should identify the run once and report important stage start/completion, outputs, and runtime without repeatedly dumping provided metadata. Do not infer configs from path names, add `${VAR:-default}` environment fallbacks, or build generic launch frameworks. Keep each job limited to options used by this package and validate scripts with `bash -n`.
 
 ## Build, Test, and Development Commands
 
@@ -22,11 +22,11 @@ python tests/smoke/check_loads.py --check-patchtst
 python tests/smoke/check_ts_ifa_training.py
 ```
 
-Use `--chronos-weights path/to/weights` only where Chronos dependencies and weights are installed. Example experiment commands are documented in `README.md`.
+Shared pretrained weights live beside the dataset folder at `../weights/`; Chronos uses `../weights/chronos2`. Use `--chronos-weights` only to override that default. Example experiment commands are documented in `README.md`.
 
 ## Coding Style & Naming Conventions
 
-Use Python 3, 4-space indentation, `snake_case` functions, and `CamelCase` classes. Prefer `pathlib.Path`, explicit tensor shape checks, deterministic seeds, and small functions matching existing module boundaries. Keep Chronos and PatchTST logic in their specific scripts; `foundation_models.py` is compatibility-only.
+Use Python 3, 4-space indentation, `snake_case` functions, and `CamelCase` classes. Prefer `pathlib.Path`, explicit tensor shape checks, deterministic seeds, package-relative imports, and small functions matching existing subpackage boundaries. Keep Chronos and PatchTST logic in their specific model modules; `ts_ifa/compat/` is compatibility-only.
 
 ## Testing Guidelines
 

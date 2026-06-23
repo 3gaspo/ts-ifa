@@ -18,10 +18,7 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-try:
-    from .models import load_model
-except ImportError:  # pragma: no cover - direct script execution
-    from models import load_model
+from ..models.models import load_model
 
 
 def set_seed(seed: int | None) -> None:
@@ -262,19 +259,20 @@ def parse_ratios(value: str | Sequence[float]) -> list[float]:
         ratios = [float(part) for part in _split_text(value)]
     else:
         ratios = [float(part) for part in value]
-    if len(ratios) != 3:
-        raise ValueError("split ratios must contain exactly three values: T0,T1,T2")
+    if len(ratios) != 4:
+        raise ValueError("split ratios must contain exactly four values: T0,T1,T2,T3")
     total = sum(ratios)
     if not np.isclose(total, 1.0):
         raise ValueError(f"split ratios must sum to 1, got {ratios}")
     return ratios
 
 
-def split_bounds(n_dates: int, ratios: str | Sequence[float]) -> tuple[int, int, int]:
-    r0, r1, _ = parse_ratios(ratios)
-    t0_end = int(r0 * n_dates)
-    t1_end = int((r0 + r1) * n_dates)
-    return t0_end, t1_end, int(n_dates)
+def split_bounds(n_dates: int, ratios: str | Sequence[float]) -> tuple[int, int, int, int]:
+    r0, r1, r2, _ = parse_ratios(ratios)
+    t0_end = int(round(r0 * n_dates))
+    t1_end = int(round((r0 + r1) * n_dates))
+    t2_end = int(round((r0 + r1 + r2) * n_dates))
+    return t0_end, t1_end, t2_end, int(n_dates)
 
 
 def load_json_kwargs(text_or_path: str | None) -> dict[str, Any]:

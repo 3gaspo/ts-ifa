@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from train_ts_ifa import main  # noqa: E402
+from ts_ifa.experiments.train_ts_ifa import main  # noqa: E402
 
 
 def make_payload(prefix: str) -> dict[str, torch.Tensor]:
@@ -56,18 +56,22 @@ def run() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         train_path = base / "train_prediction_payload.pt"
+        oracle_path = base / "oracle_prediction_payload.pt"
         eval_path = base / "eval_prediction_payload.pt"
         out = base / "ts_ifa"
         torch.save(make_payload("train"), train_path)
+        torch.save(make_payload("oracle"), oracle_path)
         torch.save(make_payload("eval"), eval_path)
         old_argv = sys.argv
         try:
             sys.argv = [
-                "train_ts_ifa.py",
+                "ts_ifa.experiments.train_ts_ifa",
                 "--train-payload",
                 str(train_path),
                 "--eval-payload",
                 str(eval_path),
+                "--oracle-payload",
+                str(oracle_path),
                 "--output-dir",
                 str(out),
                 "--epochs",
