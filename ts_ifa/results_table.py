@@ -160,11 +160,12 @@ _METHOD_LABELS = {
 
 def _short_run_name(run: str) -> str:
     match = re.fullmatch(
-        r"chronos_(raw|fourier|chronos|patchtst|model|representation)_(euclidean|cosine|pearson)_(\d+)_(online|fixed)",
+        r"chronos_(in|raw|fourier|chronos|patchtst|model|representation)_(euclidean|cosine|pearson)_(\d+)_(online|fixed)",
         run,
     )
     if match is not None:
         space, metric, neighbors, mode = match.groups()
+        space = "IN" if space == "in" else space
         metric = "L2" if metric == "euclidean" else metric
         parts = [space, metric, neighbors]
         if mode == "fixed":

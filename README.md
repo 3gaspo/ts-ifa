@@ -33,7 +33,7 @@ The default chronological ratios are `0.30,0.35,0.15,0.20`:
 - T2: context-gate training and the second part of TS-IFA training.
 - T3: untouched final evaluation for direct baselines, mixtures, gates, and TS-IFA.
 
-Retrieval defaults to L2 (`--distance-metric euclidean`) on raw lookbacks that are instance-normalized independently per window. `--no-feature-normalization` disables this retrieval-only normalization; it is separate from the forecasting model's `--normalization` option. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
+Retrieval defaults to L2 (`--distance-metric euclidean`) on time-domain lookbacks that are instance-normalized independently per window. This setting is labeled `IN_L2`; `raw_L2` is reserved for distances on unnormalized values. `--no-feature-normalization` selects the latter and is separate from the forecasting model's `--normalization` option. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
 
 The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
 
@@ -110,9 +110,10 @@ Both jobs finish by running `ts_ifa.results_table` and write
 `univariate_summary.json`, adapter `baseline_metrics.json`, and
 `ts_ifa/eval_metrics.json` artifacts. Retrieval-dependent columns are qualified
 by retrieval setting so equally named baselines remain distinct. Table labels
-are shortened by default: for example, `chronos_raw_euclidean_3_online/mix_1_learned`
-is displayed as `raw_L2_3/mix1`, while fixed retrieval is displayed as
-`raw_L2_3_fixed/mix1`. Run-specific `vanilla` columns are hidden by default.
+are shortened by default: for example, `chronos_in_euclidean_3_online/mix_1_learned`
+is displayed as `IN_L2_3/mix1`, while an explicitly unnormalized run named
+`chronos_raw_euclidean_3_fixed` is displayed as `raw_L2_3_fixed`. Run-specific
+`vanilla` columns are hidden by default.
 
 Generate or regenerate a table independently with:
 
@@ -121,7 +122,7 @@ python -m ts_ifa.results_table outputs/results \
   --metric mse --split eval \
   --datasets electricity,traffic \
   --dataset-settings electricity=168_24,672_168 \
-  --methods chronos,chronos_raw_euclidean_1_online/linear_mix \
+  --methods chronos,chronos_in_euclidean_1_online/linear_mix \
   --reference chronos --decimals 2
 ```
 

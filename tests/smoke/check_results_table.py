@@ -23,7 +23,7 @@ def main() -> None:
         setting = root / "electricity" / "168_24"
         _write(setting / "direct" / "chronos" / "univariate_summary.json",
                {"eval": {"mse": {"mean": 0.0012}, "nmse": {"mean": 0.4}}})
-        run = "chronos_raw_euclidean_3_online"
+        run = "chronos_in_euclidean_3_online"
         _write(setting / run / "baseline_adapters" / "baseline_metrics.json",
                [{"split": "eval", "baseline": "vanilla", "mse": 0.0012, "mae": 0.03, "nmse": 0.4},
                 {"split": "eval", "baseline": "mix_1_learned", "mse": 0.0009, "mae": 0.02, "nmse": 0.3},
@@ -53,7 +53,7 @@ def main() -> None:
         assert r"$\times 10^{-3}$" in latex
         assert r"\textbf{0.80}" in latex
         assert "33.33\\%" in latex
-        assert r"raw\_L2\_3/TS-IFA" in latex
+        assert r"IN\_L2\_3/TS-IFA" in latex
         assert "online" not in latex
         assert r"\begin{tabular}{llcrrr|rr}" in latex
         assert r"\textbf{0.10}" not in latex
@@ -61,7 +61,7 @@ def main() -> None:
         default_output = generate_results_table(root, output=root / "default.tex", datasets=["electricity"])
         default_latex = default_output.read_text(encoding="utf-8")
         assert "vanilla" not in default_latex
-        assert r"raw\_L2\_3/oracle-s" in default_latex
+        assert r"IN\_L2\_3/oracle-s" in default_latex
 
         fixed_run = "chronos_raw_euclidean_3_fixed"
         _write(setting / fixed_run / "baseline_adapters" / "baseline_metrics.json",

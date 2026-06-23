@@ -21,6 +21,7 @@ SETTINGS=("168 24") # "672 168" "1344 336"
 MODELS=("chronos")
 DISTANCE_SPACES=("raw")
 NEIGHBORS=(3) #1 3 10)
+RAW_FEATURE_NORMALIZATION="instance" # instance or none
 
 SPLITS="0.3,0.35,0.15,0.2"
 RETRIEVAL_MODE="online"
@@ -65,13 +66,25 @@ for dataset in "${DATASETS[@]}"; do
     for space in "${DISTANCE_SPACES[@]}"; do
       MAX_STORE_WINDOWS=30000
       SPACE_ARGS=()
+      RUN_SPACE="$space"
+      if [ "$space" = "raw" ]; then
+        if [ "$RAW_FEATURE_NORMALIZATION" = "instance" ]; then
+          RUN_SPACE="in"
+        elif [ "$RAW_FEATURE_NORMALIZATION" = "none" ]; then
+          RUN_SPACE="raw"
+          SPACE_ARGS+=(--no-feature-normalization)
+        else
+          echo "invalid RAW_FEATURE_NORMALIZATION=$RAW_FEATURE_NORMALIZATION" >&2
+          exit 2
+        fi
+      fi
       if [ "$space" = "chronos" ]; then
         MAX_STORE_WINDOWS=15000
         SPACE_ARGS+=(--pool-representation)
       fi
 
       for neighbors in "${NEIGHBORS[@]}"; do
-        SAVE_NAME="chronos_${space}_euclidean_${neighbors}_${RETRIEVAL_MODE}"
+        SAVE_NAME="chronos_${RUN_SPACE}_euclidean_${neighbors}_${RETRIEVAL_MODE}"
         RUN_DIR="$SETTING_OUT/$SAVE_NAME"
 
         srun python -m ts_ifa.experiments.extraction \
