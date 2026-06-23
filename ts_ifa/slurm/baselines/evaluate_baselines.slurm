@@ -18,9 +18,9 @@ ELECTRICITY_DROP_USERS="57;106;127;182;298;6;113;143"
 
 DATASETS=("electricity") # "traffic" "solar" "exchange_rate"
 SETTINGS=("168 24") # "672 168" "1344 336"
-MODELS=("persistence" "chronos")
-DISTANCE_SPACES=("raw" "chronos")
-NEIGHBORS=(1 3 10)
+MODELS=("chronos")
+DISTANCE_SPACES=("raw")
+NEIGHBORS=(3) #1 3 10)
 
 SPLITS="0.3,0.35,0.15,0.2"
 RETRIEVAL_MODE="online"
