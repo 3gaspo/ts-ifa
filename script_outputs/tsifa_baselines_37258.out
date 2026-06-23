@@ -1,0 +1,20 @@
+2026-06-23T16:35:58+02:00 job start kind=baseline_sweep
+2026-06-23T16:35:58+02:00 setting start dataset=electricity lags=168 horizon=24
+2026-06-23 16:36:01,087 INFO [__main__] ========================================================================
+2026-06-23 16:36:01,087 INFO [__main__] experiment start kind=univariate dataset=electricity model=chronos lags=168 horizon=24
+2026-06-23 16:36:01,391 INFO [__main__] dataset load start
+2026-06-23 16:36:02,116 INFO [__main__] dataset load done dates=26304 users=313
+2026-06-23 16:36:02,116 INFO [__main__] model load start
+2026-06-23 16:36:12,569 INFO [__main__] model load done device=cuda
+2026-06-23 16:36:12,579 INFO [__main__] evaluation start split=eval queries=10
+2026-06-23 16:36:56,774 INFO [__main__] evaluation done split=eval
+2026-06-23 16:36:57,708 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/168_24/direct/chronos
+2026-06-23 16:36:57,708 INFO [__main__] experiment done seconds=56.62
+2026-06-23 16:36:57,708 INFO [__main__] ========================================================================
+2026-06-23 16:37:01,398 INFO [__main__] ========================================================================
+2026-06-23 16:37:01,398 INFO [__main__] experiment start kind=extraction dataset=electricity model=chronos lags=168 horizon=24 neighbors=3 distance=raw/euclidean
+2026-06-23 16:37:01,692 INFO [__main__] dataset load start
+2026-06-23 16:37:02,416 INFO [__main__] dataset load done dates=26304 users=313
+2026-06-23 16:37:02,417 INFO [__main__] model load start
+2026-06-23 16:37:12,745 INFO [__main__] model load done device=cuda
+2026-06-23 16:37:12,751 INFO [__main__] extraction start split=train queries=18
