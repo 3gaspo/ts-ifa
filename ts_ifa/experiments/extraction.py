@@ -27,6 +27,7 @@ from ..data.neighbors import (
     period_eval_dates,
     search_neighbors,
 )
+from ..data.scaling import neighbor_to_query_scale
 from ..models.models import parameter_counts
 from ..visu import plot_series
 from .runtime import log_experiment_separator, setup_logging
@@ -76,6 +77,24 @@ def _predict(
         future_covariates=future_covariates,
     ).detach().cpu()
     return rearrange(prediction, "user 1 horizon -> user horizon")
+
+
+def context_on_query_scale(
+    query_lookback: torch.Tensor,
+    neighbor_windows: torch.Tensor,
+    *,
+    lags: int,
+) -> torch.Tensor:
+    """Transfer complete neighbor windows to the target query's scale."""
+    neighbor_lookback = neighbor_windows[..., :lags]
+    neighbor_horizon = neighbor_windows[..., lags:]
+    return torch.cat(
+        [
+            neighbor_to_query_scale(query_lookback, neighbor_lookback, neighbor_lookback),
+            neighbor_to_query_scale(query_lookback, neighbor_lookback, neighbor_horizon),
+        ],
+        dim=-1,
+    )
 
 
 def store_dates_for_query(
@@ -272,7 +291,8 @@ def extract_period(
         xy_c = store.select_windows(indices)
         x_c = xy_c[:, :, :lags]
         y_c = xy_c[:, :, lags:]
-        context = xy_c.to(device)
+        query_lookback = rearrange(x.detach().cpu(), "user 1 lags -> user lags")
+        context = context_on_query_scale(query_lookback, xy_c, lags=lags).to(device)
         pred_context = _predict(
             model,
             x,
@@ -294,10 +314,15 @@ def extract_period(
                 for neighbor_idx in range(k):
                     mask = torch.ones(k, dtype=torch.bool)
                     mask[neighbor_idx] = False
+                    neighbor_context = context_on_query_scale(
+                        x_c[:, neighbor_idx, :],
+                        xy_c[:, mask, :],
+                        lags=lags,
+                    )
                     neighbor_context_pred = (
                         model(
                             x_c[:, neighbor_idx : neighbor_idx + 1, :].to(device),
-                            context=xy_c[:, mask, :].to(device),
+                            context=neighbor_context.to(device),
                         )
                         .detach()
                         .cpu()

@@ -15,7 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.experiments.train_ts_ifa import main  # noqa: E402
+from ts_ifa.experiments.train_ts_ifa import (  # noqa: E402
+    PredictionPayloadDataset,
+    main,
+    prepare_batch,
+)
 
 
 def make_payload(prefix: str) -> dict[str, torch.Tensor]:
@@ -53,7 +57,35 @@ def make_payload(prefix: str) -> dict[str, torch.Tensor]:
     }
 
 
+def check_query_scale_transfer() -> None:
+    payload = {
+        "train_preds": torch.tensor([[[7.0]]]),
+        "train_preds_context": torch.tensor([[[7.0]]]),
+        "train_E_values": torch.tensor([[[[2.0]]]]),
+        "train_X_values": torch.tensor([[[3.0, 7.0]]]),
+        "train_Xc_values": torch.tensor([[[[8.0, 12.0]]]]),
+        "train_Y_values": torch.tensor([[[7.0]]]),
+        "train_Yc_values": torch.tensor([[[[14.0]]]]),
+    }
+    dataset = PredictionPayloadDataset(payload, prefix="train")
+    np_like = {
+        "x_c": torch.tensor([[[3.0, 7.0]]]),
+        "y_c": torch.tensor([[[9.0]]]),
+        "pred_neighbors": torch.tensor([[[7.0]]]),
+        "residual_c": torch.tensor([[[2.0]]]),
+    }
+    for name, expected in np_like.items():
+        torch.testing.assert_close(dataset.tensors[name], expected)
+
+    batch, _ = prepare_batch(dataset.tensors, normalization="instance", eps=1e-8)
+    torch.testing.assert_close(batch["x_c"], torch.tensor([[[-1.0, 1.0]]]))
+    torch.testing.assert_close(batch["y_c"], torch.tensor([[[2.0]]]))
+    torch.testing.assert_close(batch["pred_neighbors"], torch.tensor([[[1.0]]]))
+    torch.testing.assert_close(batch["residual_c"], torch.tensor([[[1.0]]]))
+
+
 def run() -> None:
+    check_query_scale_transfer()
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         train_path = base / "train_prediction_payload.pt"

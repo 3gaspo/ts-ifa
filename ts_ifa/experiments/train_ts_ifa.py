@@ -16,6 +16,7 @@ from einops import rearrange
 from torch.utils.data import DataLoader, Dataset
 
 from ..data.load_dataset_model import resolve_device, set_seed
+from ..data.scaling import neighbor_to_query_scale
 from ..models.models import parameter_counts
 from ..models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
 from .runtime import log_experiment_separator, setup_logging
@@ -60,16 +61,21 @@ class PredictionPayloadDataset(Dataset):
         if missing:
             raise KeyError(f"payload is missing required keys: {missing}")
 
-        x_c = payload[f"{prefix}_Xc_values"]
+        x = payload[f"{prefix}_X_values"].float()
+        x_c_raw = payload[f"{prefix}_Xc_values"].float()
+        x_c = neighbor_to_query_scale(x, x_c_raw, x_c_raw)
         if x_c.shape[2] <= 0:
             raise ValueError("TS-IFA training requires payloads extracted with neighbors > 0")
 
-        y_c = payload[f"{prefix}_Yc_values"]
-        residual_c = payload[f"{prefix}_E_values"]
-        pred_neighbors = y_c - residual_c
+        y_c_raw = payload[f"{prefix}_Yc_values"].float()
+        residual_c_raw = payload[f"{prefix}_E_values"].float()
+        pred_neighbors_raw = y_c_raw - residual_c_raw
+        y_c = neighbor_to_query_scale(x, x_c_raw, y_c_raw)
+        residual_c = neighbor_to_query_scale(x, x_c_raw, residual_c_raw, residual=True)
+        pred_neighbors = neighbor_to_query_scale(x, x_c_raw, pred_neighbors_raw)
 
         self.tensors = {
-            "x": flatten_time_user(payload[f"{prefix}_X_values"]),
+            "x": flatten_time_user(x),
             "x_c": flatten_time_user(x_c),
             "y": flatten_time_user(payload[f"{prefix}_Y_values"]),
             "y_c": flatten_time_user(y_c),
@@ -140,19 +146,19 @@ def prepare_batch(
     eps: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
     q_mean, q_std = query_stats(raw["x"], eps)
-    c_mean = raw["x_c"].mean(dim=-1, keepdim=True)
-    c_std = raw["x_c"].std(dim=-1, keepdim=True, unbiased=False).clamp_min(eps)
+    neighbor_mean = q_mean.unsqueeze(-2)
+    neighbor_std = q_std.unsqueeze(-2)
     if normalization == "instance":
         batch = {
             "x": (raw["x"] - q_mean) / q_std,
             "y": (raw["y"] - q_mean) / q_std,
             "pred": (raw["pred"] - q_mean) / q_std,
             "pred_context": (raw["pred_context"] - q_mean) / q_std,
-            "x_c": (raw["x_c"] - c_mean) / c_std,
-            "y_c": (raw["y_c"] - c_mean) / c_std,
-            "pred_neighbors": (raw["pred_neighbors"] - c_mean) / c_std,
+            "x_c": (raw["x_c"] - neighbor_mean) / neighbor_std,
+            "y_c": (raw["y_c"] - neighbor_mean) / neighbor_std,
+            "pred_neighbors": (raw["pred_neighbors"] - neighbor_mean) / neighbor_std,
         }
-        batch["residual_c"] = batch["y_c"] - batch["pred_neighbors"]
+        batch["residual_c"] = raw["residual_c"] / neighbor_std
         loss_scale = torch.ones_like(q_std)
     elif normalization == "none":
         batch = dict(raw)

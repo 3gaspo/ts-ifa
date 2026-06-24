@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
 from ts_ifa.data.neighbors import aligned_store_dates  # noqa: E402
+from ts_ifa.experiments.extraction import context_on_query_scale  # noqa: E402
 from ts_ifa.models.chronos_model import Chronos  # noqa: E402
 from ts_ifa.models.models import ForecastModel, Linear, parameter_counts  # noqa: E402
 
@@ -80,6 +81,13 @@ def main() -> None:
         future_keys = set(item["future_covariates"])
         assert future_keys <= past_keys
         assert {"context_0", "context_1", "context_2", "covariate_0"} == future_keys
+
+    scaled_context = context_on_query_scale(
+        torch.tensor([[3.0, 7.0]]),
+        torch.tensor([[[8.0, 12.0, 14.0, 16.0]]]),
+        lags=2,
+    )
+    torch.testing.assert_close(scaled_context, torch.tensor([[[3.0, 7.0, 9.0, 11.0]]]))
 
     assert split_bounds(100, "0.3,0.35,0.15,0.2") == (30, 65, 80, 100)
     fixed_dates = aligned_store_dates(

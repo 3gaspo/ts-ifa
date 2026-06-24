@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 from einops import rearrange
 
+from ..data.scaling import neighbor_to_query_scale
 from .runtime import log_experiment_separator, setup_logging
 
 
@@ -34,9 +35,18 @@ def softmax_np(x: np.ndarray, axis: int = -1) -> np.ndarray:
 
 
 def flatten_payload(payload: dict[str, Any], prefix: str) -> dict[str, np.ndarray]:
-    y_c = payload[f"{prefix}_Yc_values"].float()
-    e = payload[f"{prefix}_E_values"].float()
-    pred_neighbors = y_c - e
+    x = payload[f"{prefix}_X_values"].float()
+    x_c = payload[f"{prefix}_Xc_values"].float()
+    y_c_raw = payload[f"{prefix}_Yc_values"].float()
+    e_raw = payload[f"{prefix}_E_values"].float()
+    pred_neighbors_raw = y_c_raw - e_raw
+    y_c = neighbor_to_query_scale(x, x_c, y_c_raw)
+    e = neighbor_to_query_scale(x, x_c, e_raw, residual=True)
+    pred_neighbors = neighbor_to_query_scale(x, x_c, pred_neighbors_raw)
+    query_t = payload[f"{prefix}_query_t"]
+    query_user = payload[f"{prefix}_query_user_idx"]
+    neighbor_t = payload[f"{prefix}_neighbor_t"]
+    neighbor_user = payload[f"{prefix}_neighbor_user_idx"]
     return {
         "pred": rearrange(payload[f"{prefix}_preds"].float(), "date user horizon -> (date user) horizon").numpy(),
         "pred_c": rearrange(
@@ -44,7 +54,7 @@ def flatten_payload(payload: dict[str, Any], prefix: str) -> dict[str, np.ndarra
             "date user horizon -> (date user) horizon",
         ).numpy(),
         "y": rearrange(payload[f"{prefix}_Y_values"].float(), "date user horizon -> (date user) horizon").numpy(),
-        "x": rearrange(payload[f"{prefix}_X_values"].float(), "date user lags -> (date user) lags").numpy(),
+        "x": rearrange(x, "date user lags -> (date user) lags").numpy(),
         "y_c": rearrange(y_c, "date user neighbor horizon -> (date user) neighbor horizon").numpy(),
         "e": rearrange(e, "date user neighbor horizon -> (date user) neighbor horizon").numpy(),
         "pred_neighbors": rearrange(
@@ -55,7 +65,31 @@ def flatten_payload(payload: dict[str, Any], prefix: str) -> dict[str, np.ndarra
             payload[f"{prefix}_distance_x_xc"].float(),
             "date user neighbor -> (date user) neighbor",
         ).numpy(),
-        "query_t": rearrange(payload[f"{prefix}_query_t"], "date user -> (date user)").numpy(),
+        "query_t": rearrange(query_t, "date user -> (date user)").numpy(),
+        "neighbor_lookback_mean": rearrange(
+            x_c.mean(dim=-1).mean(dim=-1),
+            "date user -> (date user)",
+        ).numpy(),
+        "neighbor_lookback_mean_std": rearrange(
+            x_c.mean(dim=-1).std(dim=-1, unbiased=False),
+            "date user -> (date user)",
+        ).numpy(),
+        "neighbor_lookback_std": rearrange(
+            x_c.std(dim=-1, unbiased=False).mean(dim=-1),
+            "date user -> (date user)",
+        ).numpy(),
+        "neighbor_lookback_std_std": rearrange(
+            x_c.std(dim=-1, unbiased=False).std(dim=-1, unbiased=False),
+            "date user -> (date user)",
+        ).numpy(),
+        "same_user_ratio": rearrange(
+            (neighbor_user == query_user.unsqueeze(-1)).float().mean(dim=-1),
+            "date user -> (date user)",
+        ).numpy(),
+        "neighbor_age_mean": rearrange(
+            (query_t.unsqueeze(-1) - neighbor_t).float().mean(dim=-1),
+            "date user -> (date user)",
+        ).numpy(),
     }
 
 
@@ -81,12 +115,19 @@ def ridge_no_intercept(x: np.ndarray, y: np.ndarray, l2: float) -> np.ndarray:
         raise ValueError("cannot fit ridge regression without observations")
     if l2 < 0:
         raise ValueError("l2 must be non-negative")
-    # Average the normal equations before regularizing so that ``l2`` does
-    # not become weaker merely because more windows or horizons are present.
-    xtx = (x.T @ x) / x.shape[0]
-    xty = (x.T @ y) / x.shape[0]
+    # RMS-standardize without centering so zero coefficients still mean zero
+    # correction. This makes the penalty invariant to dataset units while
+    # retaining the vanilla forecast as the ridge anchor.
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    feature_scale = np.sqrt(np.mean(x**2, axis=0))
+    feature_scale = np.maximum(feature_scale, 1e-12)
+    standardized = x / feature_scale
+    xtx = (standardized.T @ standardized) / x.shape[0]
+    xty = (standardized.T @ y) / x.shape[0]
     reg = float(l2) * np.eye(xtx.shape[0], dtype=np.float64)
-    return np.linalg.solve(xtx + reg, xty)
+    standardized_coef = np.linalg.solve(xtx + reg, xty)
+    return standardized_coef / feature_scale
 
 
 def fit_baseline_adapters(train: dict[str, np.ndarray], l2: float) -> dict[str, Any]:
@@ -100,7 +141,11 @@ def fit_baseline_adapters(train: dict[str, np.ndarray], l2: float) -> dict[str, 
     residual_target = y - pred
 
     mix0_direction = weighted - pred
-    lam = np.mean(mix0_direction * residual_target) / (np.mean(mix0_direction**2) + float(l2))
+    lam = ridge_no_intercept(
+        rearrange(mix0_direction, "sample horizon -> (sample horizon) 1"),
+        rearrange(residual_target, "sample horizon -> (sample horizon)"),
+        l2,
+    )[0]
     lam = float(np.clip(lam, 0.0, 1.0))
 
     mix1_x = np.concatenate([pred[:, :, None], np.moveaxis(y_c, 1, 2)], axis=-1)
@@ -162,31 +207,79 @@ def predict_baseline_adapters(arrays: dict[str, np.ndarray], artifacts: dict[str
     return predictions
 
 
-def gate_features(arrays: dict[str, np.ndarray]) -> np.ndarray:
+COMMON_GATE_FEATURE_NAMES = (
+    "weighted_neighbor_minus_vanilla_mean",
+    "weighted_neighbor_residual_mean",
+    "query_mean",
+    "query_std",
+    "neighbor_lookback_means_mean_raw",
+    "neighbor_lookback_means_std_raw",
+    "neighbor_lookback_stds_mean_raw",
+    "neighbor_lookback_stds_std_raw",
+    "same_user_ratio",
+    "neighbor_age_mean",
+    "neighbor_weight_std",
+    "neighbor_weight_max",
+    "distance_mean",
+)
+
+SCALAR_GATE_FEATURE_NAMES = (
+    "context_minus_vanilla_mean",
+    "context_minus_vanilla_std",
+    *COMMON_GATE_FEATURE_NAMES,
+)
+
+
+def horizon_gate_feature_names(horizon: int) -> tuple[str, ...]:
+    return (
+        *(f"context_minus_vanilla_h{index}" for index in range(horizon)),
+        *COMMON_GATE_FEATURE_NAMES,
+    )
+
+
+def common_gate_features(arrays: dict[str, np.ndarray]) -> list[np.ndarray]:
     pred = arrays["pred"]
-    pred_c = arrays["pred_c"]
-    y_c = arrays["y_c"]
-    e = arrays["e"]
-    distance = arrays["distance"]
     x = arrays["x"]
+    weights = distance_weights(arrays)
     weighted = weighted_neighbor_horizon(arrays)
     weighted_e = weighted_neighbor_residual(arrays)
-    cols = [
-        ((pred_c - pred) ** 2).mean(axis=1),
-        ((weighted - pred) ** 2).mean(axis=1),
-        (weighted_e**2).mean(axis=1),
-        (e**2).mean(axis=(1, 2)),
-        distance.mean(axis=1),
-        distance.std(axis=1),
+    return [
+        (weighted - pred).mean(axis=1),
+        weighted_e.mean(axis=1),
         x.mean(axis=1),
         x.std(axis=1),
-        y_c.mean(axis=(1, 2)),
-        y_c.std(axis=(1, 2)),
+        arrays["neighbor_lookback_mean"],
+        arrays["neighbor_lookback_mean_std"],
+        arrays["neighbor_lookback_std"],
+        arrays["neighbor_lookback_std_std"],
+        arrays["same_user_ratio"],
+        arrays["neighbor_age_mean"],
+        weights.std(axis=1),
+        weights.max(axis=1),
+        arrays["distance"].mean(axis=1),
+    ]
+
+
+def scalar_gate_features(arrays: dict[str, np.ndarray]) -> np.ndarray:
+    pred = arrays["pred"]
+    pred_c = arrays["pred_c"]
+    context_delta = pred_c - pred
+    cols = [
+        context_delta.mean(axis=1),
+        context_delta.std(axis=1),
+        *common_gate_features(arrays),
     ]
     return np.stack(cols, axis=1).astype(np.float32)
 
 
-def fit_binary_gate(
+def horizon_gate_features(arrays: dict[str, np.ndarray]) -> np.ndarray:
+    pred = arrays["pred"]
+    context_delta = arrays["pred_c"] - pred
+    common = np.stack(common_gate_features(arrays), axis=1)
+    return np.concatenate([context_delta, common], axis=1).astype(np.float32)
+
+
+def fit_loss_difference_regressor(
     x_np: np.ndarray,
     y_np: np.ndarray,
     *,
@@ -195,29 +288,27 @@ def fit_binary_gate(
     depth: int,
     seed: int,
 ) -> dict[str, Any]:
-    labels = np.asarray(y_np, dtype=np.int64).reshape(-1)
-    unique = np.unique(labels)
-    if len(unique) == 1:
-        return {"constant": float(unique[0])}
+    target = np.asarray(y_np, dtype=np.float64).reshape(-1)
+    if np.ptp(target) <= 1e-12:
+        return {"constant": float(target.mean())}
     try:
-        from catboost import CatBoostClassifier
+        from catboost import CatBoostRegressor
     except ModuleNotFoundError as exc:  # pragma: no cover - dependency error
         raise ModuleNotFoundError(
             "CatBoost gates require the `catboost` project dependency. Run `uv sync`."
         ) from exc
-    model = CatBoostClassifier(
+    model = CatBoostRegressor(
         iterations=int(iterations),
         learning_rate=float(learning_rate),
         depth=int(depth),
-        loss_function="Logloss",
-        eval_metric="Accuracy",
-        auto_class_weights="Balanced",
+        loss_function="RMSE",
+        eval_metric="RMSE",
         random_seed=int(seed),
         verbose=False,
         allow_writing_files=False,
     )
-    model.fit(x_np, labels)
-    return {"classifier": model}
+    model.fit(x_np, target)
+    return {"regressor": model}
 
 
 def fit_gate(
@@ -231,19 +322,19 @@ def fit_gate(
 ) -> list[dict[str, Any]]:
     if x_np.shape[0] == 0:
         raise ValueError("cannot train baseline gates from an empty oracle-train slice")
-    labels = np.asarray(y_np)
-    if labels.ndim == 1:
-        labels = labels[:, None]
+    targets = np.asarray(y_np)
+    if targets.ndim == 1:
+        targets = targets[:, None]
     return [
-        fit_binary_gate(
+        fit_loss_difference_regressor(
             x_np,
-            labels[:, output_idx],
+            targets[:, output_idx],
             iterations=iterations,
             learning_rate=learning_rate,
             depth=depth,
             seed=seed + output_idx,
         )
-        for output_idx in range(labels.shape[1])
+        for output_idx in range(targets.shape[1])
     ]
 
 
@@ -251,10 +342,10 @@ def predict_gate(models: list[dict[str, Any]], features: np.ndarray) -> np.ndarr
     columns = []
     for model in models:
         if "constant" in model:
-            probability = np.full(features.shape[0], model["constant"], dtype=np.float64)
+            difference = np.full(features.shape[0], model["constant"], dtype=np.float64)
         else:
-            probability = model["classifier"].predict_proba(features)[:, 1]
-        columns.append(probability)
+            difference = model["regressor"].predict(features)
+        columns.append(difference)
     return np.column_stack(columns)
 
 
@@ -286,11 +377,12 @@ def add_context_gate_predictions(
 ) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, Any]]:
     base_loss = (oracle_arrays["y"] - oracle_arrays["pred"]) ** 2
     context_loss = (oracle_arrays["y"] - oracle_arrays["pred_c"]) ** 2
-    features_train = gate_features(oracle_arrays)
-    scalar_label = (context_loss.mean(axis=1) < base_loss.mean(axis=1)).astype(np.float32)[:, None]
+    scalar_features_train = scalar_gate_features(oracle_arrays)
+    # Positive difference means the context forecast has smaller loss.
+    scalar_difference = (base_loss - context_loss).mean(axis=1, keepdims=True)
     scalar_model = fit_gate(
-        features_train,
-        scalar_label,
+        scalar_features_train,
+        scalar_difference,
         iterations=iterations,
         learning_rate=learning_rate,
         depth=depth,
@@ -298,10 +390,11 @@ def add_context_gate_predictions(
     )
     horizon_model = None
     if train_horizon_gate:
-        horizon_label = (context_loss < base_loss).astype(np.float32)
+        horizon_difference = base_loss - context_loss
+        horizon_features_train = horizon_gate_features(oracle_arrays)
         horizon_model = fit_gate(
-            features_train,
-            horizon_label,
+            horizon_features_train,
+            horizon_difference,
             iterations=iterations,
             learning_rate=learning_rate,
             depth=depth,
@@ -311,17 +404,18 @@ def add_context_gate_predictions(
     out: dict[str, dict[str, np.ndarray]] = {}
     for split, arrays in arrays_by_split.items():
         split_predictions = dict(base_predictions_by_split[split])
-        features = gate_features(arrays)
-        scalar_prob = predict_gate(scalar_model, features)
+        scalar_features = scalar_gate_features(arrays)
+        scalar_difference = predict_gate(scalar_model, scalar_features)
         split_predictions["gated_context_scalar"] = np.where(
-            scalar_prob >= 0.5,
+            scalar_difference > 0.0,
             arrays["pred_c"],
             arrays["pred"],
         )
         if horizon_model is not None:
-            horizon_prob = predict_gate(horizon_model, features)
+            horizon_features = horizon_gate_features(arrays)
+            horizon_difference = predict_gate(horizon_model, horizon_features)
             split_predictions["gated_context_horizon"] = np.where(
-                horizon_prob >= 0.5,
+                horizon_difference > 0.0,
                 arrays["pred_c"],
                 arrays["pred"],
             )
@@ -329,6 +423,9 @@ def add_context_gate_predictions(
         out[split] = split_predictions
     artifacts = {
         "backend": "catboost",
+        "objective": "vanilla_loss_minus_context_loss",
+        "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
+        "horizon_feature_names": horizon_gate_feature_names(oracle_arrays["y"].shape[1]),
         "scalar_models": scalar_model,
         "horizon_models": horizon_model,
     }
@@ -435,6 +532,12 @@ def main() -> dict[str, Path]:
             "context_gate_artifacts": gate_artifacts,
             "gate_config": {
                 "backend": "catboost",
+                "objective": "vanilla_loss_minus_context_loss",
+                "decision_threshold": 0.0,
+                "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
+                "horizon_feature_names": horizon_gate_feature_names(
+                    arrays_by_split["oracle"]["y"].shape[1]
+                ),
                 "iterations": args.gate_iterations,
                 "learning_rate": args.gate_learning_rate,
                 "depth": args.gate_depth,
