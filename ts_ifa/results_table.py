@@ -1,7 +1,8 @@
 """Build publication-ready LaTeX tables from a TS-IFA experiment folder.
 
 The loader understands direct ``univariate_summary.json`` results, adapter
-``baseline_metrics.json`` results, and ``ts_ifa/eval_metrics.json`` results.
+``baseline_metrics.json`` results, ``gate_metrics.json`` results, and
+``ts_ifa/eval_metrics.json`` results.
 """
 
 from __future__ import annotations
@@ -65,7 +66,11 @@ def discover_results(experiment_dir: str | Path) -> list[Result]:
                     value = math.nan
                 results.append(Result(dataset, setting, path.parent.name, str(split), str(metric), value, path))
 
-    for path in sorted(root.rglob("baseline_metrics.json")):
+    metric_paths = [
+        *root.rglob("baseline_metrics.json"),
+        *root.rglob("gate_metrics.json"),
+    ]
+    for path in sorted(metric_paths):
         identity = _setting_ancestor(path, root)
         if identity is None:
             continue
@@ -151,6 +156,13 @@ _METHOD_LABELS = {
     "mix_0_weighted": "mix0",
     "mix_1_learned": "mix1",
     "mix_2_full_horizon": "mix2",
+    "mix_0_weighted_eval_fit": "mix0-fit-T3",
+    "mix_1_learned_eval_fit": "mix1-fit-T3",
+    "mix_2_full_horizon_eval_fit": "mix2-fit-T3",
+    "gated_context_classifier_scalar": "gate-cls-s",
+    "gated_context_classifier_horizon": "gate-cls-h",
+    "gated_context_regressor_scalar": "gate-reg-s",
+    "gated_context_regressor_horizon": "gate-reg-h",
     "gated_context_scalar": "gate-s",
     "gated_context_horizon": "gate-h",
     "oracle_context_scalar": "oracle-s",
@@ -160,12 +172,12 @@ _METHOD_LABELS = {
 
 def _short_run_name(run: str) -> str:
     match = re.fullmatch(
-        r"chronos_(in|raw|fourier|chronos|patchtst|model|representation)_(euclidean|cosine|pearson)_(\d+)_(online|fixed)",
+        r"chronos_(in|raw|instance|encoder|fourier|chronos|patchtst|model|representation)_(euclidean|cosine|pearson)_(\d+)_(online|fixed)",
         run,
     )
     if match is not None:
         space, metric, neighbors, mode = match.groups()
-        space = "IN" if space == "in" else space
+        space = {"in": "IN", "instance": "IN", "encoder": "ENC"}.get(space, space)
         metric = "L2" if metric == "euclidean" else metric
         parts = [space, metric, neighbors]
         if mode == "fixed":

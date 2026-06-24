@@ -1,4 +1,4 @@
-"""Evaluate notebook/LaTeX baselines from extracted neighbor payloads."""
+"""Evaluate baseline and gate families from extracted neighbor payloads."""
 
 from __future__ import annotations
 
@@ -207,6 +207,31 @@ def predict_baseline_adapters(arrays: dict[str, np.ndarray], artifacts: dict[str
     return predictions
 
 
+TRAINABLE_BASELINES = (
+    "mix_0_weighted",
+    "mix_1_learned",
+    "mix_2_full_horizon",
+)
+
+
+def add_eval_fitted_baselines(
+    predictions_by_split: dict[str, dict[str, np.ndarray]],
+    eval_arrays: dict[str, np.ndarray],
+    *,
+    l2: float,
+) -> dict[str, Any]:
+    """Add explicitly optimistic T3 in-sample fits for trainable mixtures."""
+    artifacts = fit_baseline_adapters(eval_arrays, l2)
+    eval_predictions = predict_baseline_adapters(eval_arrays, artifacts)
+    predictions_by_split["eval"].update(
+        {
+            f"{name}_eval_fit": eval_predictions[name]
+            for name in TRAINABLE_BASELINES
+        }
+    )
+    return artifacts
+
+
 COMMON_GATE_FEATURE_NAMES = (
     "weighted_neighbor_minus_vanilla_mean",
     "weighted_neighbor_residual_mean",
@@ -311,6 +336,39 @@ def fit_loss_difference_regressor(
     return {"regressor": model}
 
 
+def fit_improvement_classifier(
+    x_np: np.ndarray,
+    y_np: np.ndarray,
+    *,
+    iterations: int,
+    learning_rate: float,
+    depth: int,
+    seed: int,
+) -> dict[str, Any]:
+    target = np.asarray(y_np, dtype=np.float64).reshape(-1) > 0.0
+    if np.unique(target).size == 1:
+        return {"constant": float(target[0]) - 0.5}
+    try:
+        from catboost import CatBoostClassifier
+    except ModuleNotFoundError as exc:  # pragma: no cover - dependency error
+        raise ModuleNotFoundError(
+            "CatBoost gates require the `catboost` project dependency. Run `uv sync`."
+        ) from exc
+    model = CatBoostClassifier(
+        iterations=int(iterations),
+        learning_rate=float(learning_rate),
+        depth=int(depth),
+        loss_function="Logloss",
+        eval_metric="AUC",
+        auto_class_weights="Balanced",
+        random_seed=int(seed),
+        verbose=False,
+        allow_writing_files=False,
+    )
+    model.fit(x_np, target.astype(np.int8))
+    return {"classifier": model}
+
+
 def fit_gate(
     x_np: np.ndarray,
     y_np: np.ndarray,
@@ -319,14 +377,22 @@ def fit_gate(
     learning_rate: float,
     depth: int,
     seed: int,
+    objective: str = "regressor",
 ) -> list[dict[str, Any]]:
     if x_np.shape[0] == 0:
         raise ValueError("cannot train baseline gates from an empty oracle-train slice")
     targets = np.asarray(y_np)
     if targets.ndim == 1:
         targets = targets[:, None]
+    if objective not in {"classifier", "regressor"}:
+        raise ValueError(f"unknown gate objective {objective!r}")
+    fit_one = (
+        fit_improvement_classifier
+        if objective == "classifier"
+        else fit_loss_difference_regressor
+    )
     return [
-        fit_loss_difference_regressor(
+        fit_one(
             x_np,
             targets[:, output_idx],
             iterations=iterations,
@@ -343,6 +409,10 @@ def predict_gate(models: list[dict[str, Any]], features: np.ndarray) -> np.ndarr
     for model in models:
         if "constant" in model:
             difference = np.full(features.shape[0], model["constant"], dtype=np.float64)
+        elif "classifier" in model:
+            # Center the positive-class probability so every gate uses zero as
+            # the decision threshold and diagnostics remain directly comparable.
+            difference = model["classifier"].predict_proba(features)[:, 1] - 0.5
         else:
             difference = model["regressor"].predict(features)
         columns.append(difference)
@@ -373,63 +443,104 @@ def add_context_gate_predictions(
     learning_rate: float,
     depth: int,
     seed: int,
-    train_horizon_gate: bool,
-) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, Any]]:
+) -> tuple[
+    dict[str, dict[str, np.ndarray]],
+    dict[str, Any],
+    dict[str, dict[str, np.ndarray]],
+]:
     base_loss = (oracle_arrays["y"] - oracle_arrays["pred"]) ** 2
     context_loss = (oracle_arrays["y"] - oracle_arrays["pred_c"]) ** 2
-    scalar_features_train = scalar_gate_features(oracle_arrays)
     # Positive difference means the context forecast has smaller loss.
-    scalar_difference = (base_loss - context_loss).mean(axis=1, keepdims=True)
-    scalar_model = fit_gate(
-        scalar_features_train,
-        scalar_difference,
-        iterations=iterations,
-        learning_rate=learning_rate,
-        depth=depth,
-        seed=seed,
-    )
-    horizon_model = None
-    if train_horizon_gate:
-        horizon_difference = base_loss - context_loss
-        horizon_features_train = horizon_gate_features(oracle_arrays)
-        horizon_model = fit_gate(
-            horizon_features_train,
-            horizon_difference,
-            iterations=iterations,
-            learning_rate=learning_rate,
-            depth=depth,
-            seed=seed + 1,
-        )
+    train_targets = {
+        "scalar": (base_loss - context_loss).mean(axis=1, keepdims=True),
+        "horizon": base_loss - context_loss,
+    }
+    train_features = {
+        "scalar": scalar_gate_features(oracle_arrays),
+        "horizon": horizon_gate_features(oracle_arrays),
+    }
+    models: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for objective_index, objective in enumerate(("classifier", "regressor")):
+        models[objective] = {}
+        for shape_index, shape in enumerate(("scalar", "horizon")):
+            models[objective][shape] = fit_gate(
+                train_features[shape],
+                train_targets[shape],
+                iterations=iterations,
+                learning_rate=learning_rate,
+                depth=depth,
+                seed=seed + objective_index * 10_000 + shape_index * 1_000,
+                objective=objective,
+            )
 
     out: dict[str, dict[str, np.ndarray]] = {}
+    diagnostics: dict[str, dict[str, np.ndarray]] = {}
     for split, arrays in arrays_by_split.items():
         split_predictions = dict(base_predictions_by_split[split])
-        scalar_features = scalar_gate_features(arrays)
-        scalar_difference = predict_gate(scalar_model, scalar_features)
-        split_predictions["gated_context_scalar"] = np.where(
-            scalar_difference > 0.0,
-            arrays["pred_c"],
-            arrays["pred"],
-        )
-        if horizon_model is not None:
-            horizon_features = horizon_gate_features(arrays)
-            horizon_difference = predict_gate(horizon_model, horizon_features)
-            split_predictions["gated_context_horizon"] = np.where(
-                horizon_difference > 0.0,
-                arrays["pred_c"],
-                arrays["pred"],
-            )
+        split_features = {
+            "scalar": scalar_gate_features(arrays),
+            "horizon": horizon_gate_features(arrays),
+        }
+        split_base_loss = (arrays["y"] - arrays["pred"]) ** 2
+        split_context_loss = (arrays["y"] - arrays["pred_c"]) ** 2
+        split_targets = {
+            "scalar": (split_base_loss - split_context_loss).mean(axis=1),
+            "horizon": split_base_loss - split_context_loss,
+        }
+        diagnostics[split] = {}
+        for objective in ("classifier", "regressor"):
+            for shape in ("scalar", "horizon"):
+                score = predict_gate(models[objective][shape], split_features[shape])
+                decision = score > 0.0
+                if shape == "scalar":
+                    decision = decision[:, :1]
+                name = f"gated_context_{objective}_{shape}"
+                split_predictions[name] = np.where(
+                    decision,
+                    arrays["pred_c"],
+                    arrays["pred"],
+                )
+                diagnostics[split][f"{objective}_{shape}_score"] = (
+                    score[:, 0] if shape == "scalar" else score
+                )
+                diagnostics[split][f"{objective}_{shape}_target"] = split_targets[shape]
         add_true_context_oracles(split_predictions, arrays)
         out[split] = split_predictions
     artifacts = {
         "backend": "catboost",
-        "objective": "vanilla_loss_minus_context_loss",
+        "objectives": {
+            "classifier": "context_improves_over_vanilla",
+            "regressor": "vanilla_loss_minus_context_loss",
+        },
         "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
         "horizon_feature_names": horizon_gate_feature_names(oracle_arrays["y"].shape[1]),
-        "scalar_models": scalar_model,
-        "horizon_models": horizon_model,
+        "models": models,
     }
-    return out, artifacts
+    return out, artifacts, diagnostics
+
+
+def visualization_payload(
+    predictions_by_split: dict[str, dict[str, np.ndarray]],
+    gate_diagnostics: dict[str, dict[str, np.ndarray]],
+) -> dict[str, Any]:
+    """Create a plotting payload without serialized estimators or duplicated inputs."""
+    splits: dict[str, Any] = {}
+    for split, predictions in predictions_by_split.items():
+        splits[split] = {
+            "predictions": {
+                name: torch.as_tensor(value, dtype=torch.float32)
+                for name, value in predictions.items()
+            },
+            "gate_diagnostics": {
+                name: torch.as_tensor(value, dtype=torch.float32)
+                for name, value in gate_diagnostics.get(split, {}).items()
+            },
+        }
+    return {
+        "format_version": 1,
+        "description": "Precomputed baseline predictions and gate diagnostics for visualization.",
+        "splits": splits,
+    }
 
 
 def evaluate_predictions(split: str, arrays: dict[str, np.ndarray], predictions: dict[str, np.ndarray]) -> list[dict[str, Any]]:
@@ -459,8 +570,14 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", required=True)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--family", choices=("all", "baselines", "gates"), default="all")
     parser.add_argument("--prefixes", default="train,oracle,eval")
     parser.add_argument("--l2", type=float, default=1e-3)
+    parser.add_argument(
+        "--fit-baselines-on-eval",
+        action="store_true",
+        help="Also report optimistic in-sample fits of trainable baselines on T3",
+    )
     parser.add_argument("--gate-iterations", "--gate-epochs", dest="gate_iterations", type=int, default=300)
     parser.add_argument(
         "--gate-learning-rate",
@@ -470,7 +587,7 @@ def parse_args() -> argparse.Namespace:
         default=3e-2,
     )
     parser.add_argument("--gate-depth", type=int, default=4)
-    parser.add_argument("--train-horizon-gate", action="store_true")
+    parser.add_argument("--train-horizon-gate", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--seed", type=int, default=1)
     return parser.parse_args()
 
@@ -481,9 +598,14 @@ def main() -> dict[str, Path]:
     log_experiment_separator(LOGGER)
     started = perf_counter()
     input_dir = Path(args.input_dir).expanduser()
-    output_dir = Path(args.output_dir).expanduser() if args.output_dir else input_dir / "baseline_adapters"
+    default_subdir = {
+        "all": "baseline_adapters",
+        "baselines": "baselines",
+        "gates": "gates",
+    }[args.family]
+    output_dir = Path(args.output_dir).expanduser() if args.output_dir else input_dir / default_subdir
     output_dir.mkdir(parents=True, exist_ok=True)
-    LOGGER.info("experiment start kind=baseline_adapters input=%s", input_dir)
+    LOGGER.info("experiment start kind=%s input=%s", args.family, input_dir)
 
     prefixes = [part.strip() for part in args.prefixes.replace(";", ",").split(",") if part.strip()]
     LOGGER.info("payload load start")
@@ -496,60 +618,88 @@ def main() -> dict[str, Path]:
         raise ValueError(f"baseline evaluation requires train, oracle, and eval payloads; missing {sorted(missing)}")
     LOGGER.info("payload load done splits=%s", ",".join(prefixes))
 
-    LOGGER.info("mixture fitting start")
-    artifacts = fit_baseline_adapters(arrays_by_split["train"], args.l2)
-    LOGGER.info("mixture fitting done")
-
-    predictions_by_split_base = {
-        split: predict_baseline_adapters(arrays, artifacts)
-        for split, arrays in arrays_by_split.items()
+    artifacts = None
+    eval_fit_artifacts = None
+    predictions_by_split: dict[str, dict[str, np.ndarray]] = {
+        split: {} for split in arrays_by_split
     }
-    LOGGER.info("context gate fitting start")
-    predictions_by_split, gate_artifacts = add_context_gate_predictions(
-        predictions_by_split_base,
-        arrays_by_split["oracle"],
-        arrays_by_split,
-        iterations=args.gate_iterations,
-        learning_rate=args.gate_learning_rate,
-        depth=args.gate_depth,
-        seed=args.seed,
-        train_horizon_gate=args.train_horizon_gate,
-    )
-    LOGGER.info("context gate fitting done horizon=%s", args.train_horizon_gate)
+    if args.family in {"all", "baselines"}:
+        LOGGER.info("mixture fitting start")
+        artifacts = fit_baseline_adapters(arrays_by_split["train"], args.l2)
+        predictions_by_split = {
+            split: predict_baseline_adapters(arrays, artifacts)
+            for split, arrays in arrays_by_split.items()
+        }
+        if args.fit_baselines_on_eval:
+            eval_fit_artifacts = add_eval_fitted_baselines(
+                predictions_by_split,
+                arrays_by_split["eval"],
+                l2=args.l2,
+            )
+        LOGGER.info("mixture fitting done")
+
+    gate_artifacts = None
+    gate_diagnostics: dict[str, dict[str, np.ndarray]] = {
+        split: {} for split in arrays_by_split
+    }
+    if args.family in {"all", "gates"}:
+        LOGGER.info("context gate fitting start objectives=classifier,regressor shapes=scalar,horizon")
+        predictions_by_split, gate_artifacts, gate_diagnostics = add_context_gate_predictions(
+            predictions_by_split,
+            arrays_by_split["oracle"],
+            arrays_by_split,
+            iterations=args.gate_iterations,
+            learning_rate=args.gate_learning_rate,
+            depth=args.gate_depth,
+            seed=args.seed,
+        )
+        LOGGER.info("context gate fitting done")
 
     LOGGER.info("evaluation start split=eval")
     rows = evaluate_predictions("eval", arrays_by_split["eval"], predictions_by_split["eval"])
     LOGGER.info("evaluation done rows=%s", len(rows))
     frame = pd.DataFrame(rows)
-    csv_path = output_dir / "baseline_metrics.csv"
-    json_path = output_dir / "baseline_metrics.json"
-    artifact_path = output_dir / "baseline_artifacts.pt"
+    metrics_stem = "gate_metrics" if args.family == "gates" else "baseline_metrics"
+    csv_path = output_dir / f"{metrics_stem}.csv"
+    json_path = output_dir / f"{metrics_stem}.json"
+    artifact_path = output_dir / ("gate_artifacts.pt" if args.family == "gates" else "baseline_artifacts.pt")
+    visualization_path = output_dir / "visualization_payload.pt"
     frame.to_csv(csv_path, index=False)
     json_path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    saved_artifacts: dict[str, Any] = {"family": args.family}
+    if artifacts is not None:
+        saved_artifacts["mix_artifacts"] = artifacts
+    if eval_fit_artifacts is not None:
+        saved_artifacts["eval_fit_mix_artifacts"] = eval_fit_artifacts
+    if gate_artifacts is not None:
+        saved_artifacts["context_gate_artifacts"] = gate_artifacts
+        saved_artifacts["gate_config"] = {
+            "backend": "catboost",
+            "objectives": ["classifier", "regressor"],
+            "decision_threshold": 0.0,
+            "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
+            "horizon_feature_names": horizon_gate_feature_names(
+                arrays_by_split["oracle"]["y"].shape[1]
+            ),
+            "iterations": args.gate_iterations,
+            "learning_rate": args.gate_learning_rate,
+            "depth": args.gate_depth,
+            "shapes": ["scalar", "horizon"],
+        }
+    torch.save(saved_artifacts, artifact_path)
     torch.save(
-        {
-            "mix_artifacts": artifacts,
-            "context_gate_artifacts": gate_artifacts,
-            "gate_config": {
-                "backend": "catboost",
-                "objective": "vanilla_loss_minus_context_loss",
-                "decision_threshold": 0.0,
-                "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
-                "horizon_feature_names": horizon_gate_feature_names(
-                    arrays_by_split["oracle"]["y"].shape[1]
-                ),
-                "iterations": args.gate_iterations,
-                "learning_rate": args.gate_learning_rate,
-                "depth": args.gate_depth,
-                "train_horizon_gate": args.train_horizon_gate,
-            },
-        },
-        artifact_path,
+        visualization_payload(predictions_by_split, gate_diagnostics),
+        visualization_path,
     )
     LOGGER.info("outputs saved dir=%s", output_dir)
     LOGGER.info("experiment done seconds=%.2f", perf_counter() - started)
     log_experiment_separator(LOGGER)
-    return {"csv": csv_path, "json": json_path, "artifacts": artifact_path}
+    return {
+        "csv": csv_path,
+        "json": json_path,
+        "artifacts": artifact_path,
+        "visualization": visualization_path,
+    }
 
 
 if __name__ == "__main__":

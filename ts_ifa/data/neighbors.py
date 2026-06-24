@@ -158,10 +158,9 @@ def build_window_batch(
     *,
     lags: int,
     horizon: int,
-    distance_space: str = "raw",
+    distance_space: str = "instance",
     model: torch.nn.Module | None = None,
     device: str | torch.device | None = None,
-    normalize: bool = True,
     pool_representation: bool = False,
 ) -> WindowBatch:
     """Build flattened features and raw windows for deterministic start dates."""
@@ -183,26 +182,25 @@ def build_window_batch(
     raw = dataset.values[value_indices]  # (dates, lags+horizon, users)
     windows = rearrange(raw, "date time user -> (user date) time")
     lookbacks = windows[:, : int(lags)]
-    feature_source = normalize_windows(lookbacks) if normalize else lookbacks.astype(np.float32)
 
     space = str(distance_space).lower()
-    if space == "fourier":
-        features = fourier_features(feature_source)
-    elif space in {"chronos", "patchtst", "model", "representation"}:
+    if space == "raw":
+        features = lookbacks.astype(np.float32)
+    elif space == "instance":
+        features = normalize_windows(lookbacks)
+    elif space == "encoder":
         if model is None:
             raise ValueError(f"distance_space={distance_space!r} requires a model")
         if not hasattr(model, "representation"):
             raise AttributeError("model does not expose representation()")
         x = torch.as_tensor(
-            rearrange(feature_source, "sample time -> sample 1 time"),
+            rearrange(lookbacks, "sample time -> sample 1 time"),
             dtype=torch.float32,
             device=device,
         )
         with torch.inference_mode():
             reps = model.representation(x, pool=pool_representation)
         features = reps.detach().cpu().numpy().astype(np.float32)
-    elif space == "raw":
-        features = np.ascontiguousarray(feature_source, dtype=np.float32)
     else:
         raise ValueError(f"unknown distance_space={distance_space!r}")
 

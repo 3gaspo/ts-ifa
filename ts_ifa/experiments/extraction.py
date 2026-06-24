@@ -221,7 +221,6 @@ def extract_period(
             distance_space=args.distance_space,
             model=model,
             device=device,
-            normalize=not args.no_feature_normalization,
             pool_representation=args.pool_representation,
         )
         x = rearrange(query.windows[:, :lags], "user lags -> user 1 lags").to(device)
@@ -276,7 +275,6 @@ def extract_period(
             distance_space=args.distance_space,
             model=model,
             device=device,
-            normalize=not args.no_feature_normalization,
             pool_representation=args.pool_representation,
         )
         store_date_count[i] = len(store_dates)
@@ -446,7 +444,6 @@ def plot_neighbor_example(
         distance_space=args.distance_space,
         model=model,
         device=device,
-        normalize=not args.no_feature_normalization,
         pool_representation=args.pool_representation,
     )
     store_dates = store_dates_for_query(
@@ -464,7 +461,6 @@ def plot_neighbor_example(
         distance_space=args.distance_space,
         model=model,
         device=device,
-        normalize=not args.no_feature_normalization,
         pool_representation=args.pool_representation,
     )
     _, indices = search_neighbors(
@@ -510,7 +506,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-stride", type=int, default=24)
     parser.add_argument("--period", type=int, default=24)
     parser.add_argument("--neighbors", type=int, default=0)
-    parser.add_argument("--distance-space", default="raw", choices=["raw", "fourier", "chronos", "patchtst", "model", "representation"])
+    parser.add_argument(
+        "--distance-space",
+        default="instance",
+        choices=["raw", "instance", "encoder"],
+        help="Lookback space used by neighbor search",
+    )
     parser.add_argument("--distance-metric", default="euclidean", choices=["euclidean", "cosine", "pearson"])
     parser.add_argument("--retrieval-mode", default="online", choices=["online", "fixed"])
     parser.add_argument("--min-store-dates", type=int, default=None)
@@ -526,7 +527,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--store-start-date", type=int, default=None)
     parser.add_argument("--store-end-date", type=int, default=None)
     parser.add_argument("--no-align-period", action="store_true")
-    parser.add_argument("--no-feature-normalization", action="store_true")
     parser.add_argument("--pool-representation", action="store_true")
     parser.add_argument("--compute-ec", action="store_true", help="Also save neighbor-context residuals Ec")
     parser.add_argument("--search-chunk-size", type=int, default=512)

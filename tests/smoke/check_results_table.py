@@ -23,10 +23,17 @@ def main() -> None:
         setting = root / "electricity" / "168_24"
         _write(setting / "direct" / "chronos" / "univariate_summary.json",
                {"eval": {"mse": {"mean": 0.0012}, "nmse": {"mean": 0.4}}})
-        run = "chronos_in_euclidean_3_online"
-        _write(setting / run / "baseline_adapters" / "baseline_metrics.json",
+        run = "chronos_instance_euclidean_3_online"
+        _write(setting / run / "baselines" / "baseline_metrics.json",
                [{"split": "eval", "baseline": "vanilla", "mse": 0.0012, "mae": 0.03, "nmse": 0.4},
                 {"split": "eval", "baseline": "mix_1_learned", "mse": 0.0009, "mae": 0.02, "nmse": 0.3},
+                {"split": "eval", "baseline": "mix_1_learned_eval_fit", "mse": 0.0005,
+                 "mae": 0.015, "nmse": 0.18}])
+        _write(setting / run / "gates" / "gate_metrics.json",
+               [{"split": "eval", "baseline": "gated_context_classifier_scalar", "mse": 0.0007,
+                 "mae": 0.018, "nmse": 0.22},
+                {"split": "eval", "baseline": "gated_context_regressor_horizon", "mse": 0.0006,
+                 "mae": 0.016, "nmse": 0.2},
                 {"split": "eval", "baseline": "oracle_context_scalar", "mse": 0.0002, "mae": 0.01, "nmse": 0.1},
                 {"split": "eval", "baseline": "oracle_context_horizon", "mse": 0.0001, "mae": 0.005, "nmse": 0.05}])
         _write(setting / run / "ts_ifa" / "eval_metrics.json",
@@ -39,6 +46,9 @@ def main() -> None:
             "chronos",
             f"{run}/vanilla",
             f"{run}/mix_1_learned",
+            f"{run}/mix_1_learned_eval_fit",
+            f"{run}/gated_context_classifier_scalar",
+            f"{run}/gated_context_regressor_horizon",
             f"{run}/oracle_context_scalar",
             f"{run}/oracle_context_horizon",
             f"{run}/TS-IFA",
@@ -62,6 +72,19 @@ def main() -> None:
         default_latex = default_output.read_text(encoding="utf-8")
         assert "vanilla" not in default_latex
         assert r"IN\_L2\_3/oracle-s" in default_latex
+        assert r"IN\_L2\_3/gate-cls-s" in default_latex
+        assert r"IN\_L2\_3/gate-reg-h" in default_latex
+
+        baseline_output = generate_results_table(
+            root,
+            output=root / "baselines.tex",
+            methods=["chronos", f"{run}/mix_1_learned", f"{run}/mix_1_learned_eval_fit"],
+            reference="chronos",
+            excluded_from_bold=["mix_1_learned_eval_fit"],
+        )
+        baseline_latex = baseline_output.read_text(encoding="utf-8")
+        assert r"IN\_L2\_3/mix1-fit-T3" in baseline_latex
+        assert r"\begin{tabular}{llcrr|r}" in baseline_latex
 
         fixed_run = "chronos_raw_euclidean_3_fixed"
         _write(setting / fixed_run / "baseline_adapters" / "baseline_metrics.json",

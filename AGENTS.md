@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repo implements baselines and TS-IFA from the LaTeX design notes; treat that LaTeX as prior design guidance that may evolve, and do not edit it unless asked. Active code and scripts are under `ts_ifa/`: `data/` owns loading and retrieval, `models/` contains forecast backbones and the adapter, `experiments/` contains runnable pipelines and logging, `visu/` contains plotting helpers and notebooks, `slurm/` contains cluster jobs, and `compat/` contains temporary import shims. `tests/smoke/` remains at repository root for tiny local checks.
+This repo implements baselines and TS-IFA from the LaTeX design notes; treat that LaTeX as prior design guidance that may evolve, and do not edit it unless asked. Active code and scripts are under `ts_ifa/`: `data/` owns loading and retrieval, `models/` contains forecast backbones and the adapter, `experiments/` contains runnable pipelines and logging, `visu/` contains plotting helpers and notebooks, and `slurm/` contains cluster jobs. `tests/smoke/` remains at repository root for tiny local checks.
 
 ## Data Flow & Experiment Scope
 
@@ -26,7 +26,7 @@ Shared pretrained weights live beside the dataset folder at `../weights/`; Chron
 
 ## Coding Style & Naming Conventions
 
-Use Python 3, 4-space indentation, `snake_case` functions, and `CamelCase` classes. Prefer `pathlib.Path`, explicit tensor shape checks, deterministic seeds, package-relative imports, and small functions matching existing subpackage boundaries. Keep Chronos and PatchTST logic in their specific model modules; `ts_ifa/compat/` is compatibility-only.
+Use Python 3, 4-space indentation, `snake_case` functions, and `CamelCase` classes. Prefer `pathlib.Path`, explicit tensor shape checks, deterministic seeds, package-relative imports, and small functions matching existing subpackage boundaries. Keep Chronos and PatchTST logic in their specific model modules.
 
 ## Testing Guidelines
 

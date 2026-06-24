@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
 import torch
 
 
@@ -15,7 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
-from ts_ifa.data.neighbors import aligned_store_dates  # noqa: E402
+from ts_ifa.data.neighbors import aligned_store_dates, build_window_batch  # noqa: E402
 from ts_ifa.experiments.extraction import context_on_query_scale  # noqa: E402
 from ts_ifa.models.chronos_model import Chronos  # noqa: E402
 from ts_ifa.models.models import ForecastModel, Linear, parameter_counts  # noqa: E402
@@ -57,6 +58,43 @@ def main() -> None:
     )
     pred = persistence(x, future_covariates=future_cov)
     assert pred.shape == y.shape
+
+    raw_windows = build_window_batch(
+        dataset,
+        np.asarray([0, 1]),
+        lags=lags,
+        horizon=horizon,
+        distance_space="raw",
+    )
+    instance_windows = build_window_batch(
+        dataset,
+        np.asarray([0, 1]),
+        lags=lags,
+        horizon=horizon,
+        distance_space="instance",
+    )
+    np.testing.assert_allclose(instance_windows.features.mean(axis=1), 0.0, atol=1e-6)
+    np.testing.assert_allclose(instance_windows.features.std(axis=1), 1.0, atol=1e-6)
+    assert not np.allclose(raw_windows.features, instance_windows.features)
+
+    class EncoderStub(torch.nn.Module):
+        def representation(self, values: torch.Tensor, *, pool: bool = False) -> torch.Tensor:
+            del pool
+            return values.mean(dim=-1)
+
+    encoder_windows = build_window_batch(
+        dataset,
+        np.asarray([0, 1]),
+        lags=lags,
+        horizon=horizon,
+        distance_space="encoder",
+        model=EncoderStub(),
+        device="cpu",
+    )
+    np.testing.assert_allclose(
+        encoder_windows.features[:, 0],
+        raw_windows.features.mean(axis=1),
+    )
 
     linear = ForecastModel(Linear(lags=lags, horizon=horizon))
     assert parameter_counts(linear) == (lags * horizon + horizon, lags * horizon + horizon)

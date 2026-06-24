@@ -217,6 +217,7 @@ def evaluate(
     device: torch.device,
     normalization: str,
     eps: float,
+    prediction_output: dict[str, torch.Tensor] | None = None,
 ) -> dict[str, float]:
     model.eval()
     sums = {
@@ -227,6 +228,11 @@ def evaluate(
         "memory_branch_nmse": 0.0,
         "adapted_mse": 0.0,
         "adapted_mae": 0.0,
+    }
+    prediction_batches: dict[str, list[torch.Tensor]] = {
+        "ts_ifa": [],
+        "ts_ifa_residual_branch": [],
+        "ts_ifa_memory_branch": [],
     }
     count = 0
     with torch.inference_mode():
@@ -240,6 +246,11 @@ def evaluate(
             y = raw["y"]
             n = y.shape[0]
 
+            if prediction_output is not None:
+                prediction_batches["ts_ifa"].append(adapted.detach().cpu())
+                prediction_batches["ts_ifa_residual_branch"].append(residual.detach().cpu())
+                prediction_batches["ts_ifa_memory_branch"].append(memory.detach().cpu())
+
             sums["adapted_nmse"] += nmse_mean(adapted, y, raw["x"], eps).sum().item()
             sums["vanilla_nmse"] += nmse_mean(raw["pred"], y, raw["x"], eps).sum().item()
             sums["context_nmse"] += nmse_mean(raw["pred_context"], y, raw["x"], eps).sum().item()
@@ -248,6 +259,13 @@ def evaluate(
             sums["adapted_mse"] += F.mse_loss(adapted, y, reduction="sum").item() / y.shape[-1]
             sums["adapted_mae"] += F.l1_loss(adapted, y, reduction="sum").item() / y.shape[-1]
             count += n
+    if prediction_output is not None:
+        prediction_output.update(
+            {
+                name: torch.cat(batches, dim=0) if batches else torch.empty(0)
+                for name, batches in prediction_batches.items()
+            }
+        )
     return {key: value / max(count, 1) for key, value in sums.items()}
 
 
@@ -464,6 +482,7 @@ def main() -> dict[str, Path]:
     LOGGER.info("training done seconds=%.2f", perf_counter() - start_time)
 
     final_eval = {}
+    eval_predictions: dict[str, torch.Tensor] = {}
     if eval_loader is not None:
         LOGGER.info("evaluation start")
         final_eval = evaluate(
@@ -472,12 +491,14 @@ def main() -> dict[str, Path]:
             device=device,
             normalization=args.normalization,
             eps=eps,
+            prediction_output=eval_predictions,
         )
         LOGGER.info("evaluation done adapted_nmse=%.6f", final_eval["adapted_nmse"])
 
     checkpoint_path = output_dir / "ts_ifa.pt"
     history_path = output_dir / "training_history.json"
     metrics_path = output_dir / "eval_metrics.json"
+    predictions_path = output_dir / "eval_predictions.pt"
     config_path = output_dir / "config.json"
     plot_path = output_dir / "training_nmse.pdf"
     torch.save(
@@ -498,6 +519,14 @@ def main() -> dict[str, Path]:
     )
     save_json(history_path, {"history": history})
     save_json(metrics_path, final_eval)
+    torch.save(
+        {
+            "format_version": 1,
+            "split": "eval",
+            "predictions": eval_predictions,
+        },
+        predictions_path,
+    )
     plot_loss_curve(history, plot_path)
     save_json(
         config_path,
@@ -527,6 +556,7 @@ def main() -> dict[str, Path]:
         "checkpoint": checkpoint_path,
         "history": history_path,
         "metrics": metrics_path,
+        "predictions": predictions_path,
         "config": config_path,
         "plot": plot_path,
     }

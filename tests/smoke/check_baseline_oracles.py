@@ -15,6 +15,8 @@ if str(ROOT) not in sys.path:
 
 from ts_ifa.data.scaling import neighbor_to_query_scale  # noqa: E402
 from ts_ifa.experiments.evaluate_baselines import (  # noqa: E402
+    add_context_gate_predictions,
+    add_eval_fitted_baselines,
     add_true_context_oracles,
     fit_gate,
     flatten_payload,
@@ -103,6 +105,48 @@ def main() -> None:
     assert horizon_features.shape[1] == 2 + 13
     assert horizon_features.shape[1] == len(horizon_gate_feature_names(2))
 
+    gate_predictions, gate_artifacts, gate_diagnostics = add_context_gate_predictions(
+        {split: {} for split in ("train", "oracle", "eval")},
+        flattened,
+        {split: flattened for split in ("train", "oracle", "eval")},
+        iterations=1,
+        learning_rate=0.1,
+        depth=1,
+        seed=1,
+    )
+    assert set(gate_predictions["eval"]) == {
+        "gated_context_classifier_scalar",
+        "gated_context_classifier_horizon",
+        "gated_context_regressor_scalar",
+        "gated_context_regressor_horizon",
+        "oracle_context_scalar",
+        "oracle_context_horizon",
+    }
+    assert set(gate_artifacts["models"]) == {"classifier", "regressor"}
+    assert set(gate_diagnostics["eval"]) == {
+        "classifier_scalar_score",
+        "classifier_scalar_target",
+        "classifier_horizon_score",
+        "classifier_horizon_target",
+        "regressor_scalar_score",
+        "regressor_scalar_target",
+        "regressor_horizon_score",
+        "regressor_horizon_target",
+    }
+
+    baseline_predictions = {"eval": {}}
+    eval_fit_artifacts = add_eval_fitted_baselines(
+        baseline_predictions,
+        flattened,
+        l2=1e-3,
+    )
+    assert set(baseline_predictions["eval"]) == {
+        "mix_0_weighted_eval_fit",
+        "mix_1_learned_eval_fit",
+        "mix_2_full_horizon_eval_fit",
+    }
+    assert set(eval_fit_artifacts) == {"mix_0_lambda", "mix_1_coef", "mix_2_coef"}
+
     gate_x = np.asarray([[0.0], [0.1], [0.9], [1.0]], dtype=np.float32)
     gate_y = np.asarray([[-4.0], [-1.0], [1.0], [4.0]], dtype=np.float32)
     gate = fit_gate(
@@ -116,6 +160,33 @@ def main() -> None:
     differences = predict_gate(gate, gate_x)
     assert differences.shape == gate_y.shape
     assert differences[:2].mean() < 0.0 < differences[2:].mean()
+
+    classifier = fit_gate(
+        gate_x,
+        gate_y,
+        iterations=50,
+        learning_rate=0.1,
+        depth=2,
+        seed=1,
+        objective="classifier",
+    )
+    classifier_scores = predict_gate(classifier, gate_x)
+    assert classifier_scores.shape == gate_y.shape
+    assert classifier_scores[:2].mean() < 0.0 < classifier_scores[2:].mean()
+
+    constant_classifier = fit_gate(
+        gate_x,
+        np.ones_like(gate_y),
+        iterations=1,
+        learning_rate=0.1,
+        depth=1,
+        seed=1,
+        objective="classifier",
+    )
+    np.testing.assert_array_equal(
+        predict_gate(constant_classifier, gate_x),
+        np.full_like(gate_y, 0.5, dtype=np.float64),
+    )
     print("baseline oracle checks passed")
 
 

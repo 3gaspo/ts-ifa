@@ -7,10 +7,10 @@ This repository contains Python tools for retrieval-based residual adaptation ex
 - `ts_ifa/data/`: CSV loading, split helpers, aligned windows, representations, and exact KNN search.
 - `ts_ifa/models/`: common forecast wrapper, persistence/linear baselines, Chronos, PatchTST, and the TS-IFA adapter.
 - `ts_ifa/experiments/`: extraction, direct evaluation, payload baselines, feature analysis, TS-IFA training, and shared logging.
-- `ts_ifa/visu/`: plotting helpers and exploratory notebooks.
-- `ts_ifa/compat/`: temporary compatibility imports for previous module names.
-- `ts_ifa/slurm/baselines/`: cluster jobs for direct and payload baseline evaluation.
-- `ts_ifa/slurm/training/`: cluster jobs for TS-IFA extraction, training, and evaluation.
+- `ts_ifa/visu/`: plotting helpers and the artifact-only retrieval dashboard notebook.
+- `ts_ifa/slurm/extraction/`: shared direct-model evaluation and retrieval-payload extraction.
+- `ts_ifa/slurm/baselines/`, `gates/`, and `training/`: independent model-family jobs that consume completed payloads.
+- `ts_ifa/slurm/results/`: final LaTeX table generation after model-family jobs finish.
 - `tests/smoke/`: tiny CSV fixture and load/inference checks for local or cluster sanity tests.
 
 ## Data Flow
@@ -33,7 +33,7 @@ The default chronological ratios are `0.30,0.35,0.15,0.20`:
 - T2: context-gate training and the second part of TS-IFA training.
 - T3: untouched final evaluation for direct baselines, mixtures, gates, and TS-IFA.
 
-Retrieval defaults to L2 (`--distance-metric euclidean`) on time-domain lookbacks that are instance-normalized independently per window. This setting is labeled `IN_L2`; `raw_L2` is reserved for distances on unnormalized values. `--no-feature-normalization` selects the latter and is separate from the forecasting model's `--normalization` option. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
+Retrieval defaults to L2 (`--distance-metric euclidean`) with `--distance-space instance`, which instance-normalizes every time-domain lookback independently. The other spaces are `raw`, for unnormalized lookbacks, and `encoder`, for the loaded forecasting model's representation. Encoder retrieval currently recomputes datastore representations for every query date and is therefore substantially more expensive; raw and instance retrieval do not call the model during neighbor search. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
 
 The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
 
@@ -49,9 +49,10 @@ python tests/smoke/check_loads.py --check-patchtst
 python tests/smoke/check_loads.py --chronos-weights ../weights/chronos2
 python tests/smoke/check_baseline_oracles.py
 python tests/smoke/check_ts_ifa_training.py
+python tests/smoke/check_retrieval_dashboard.py
 ```
 
-These checks validate CSV parsing, window shapes, persistence inference, optional PatchTST construction, optional Chronos loading, and the TS-IFA training path on synthetic payloads.
+These checks validate CSV parsing, window shapes, persistence inference, optional PatchTST construction, optional Chronos loading, the TS-IFA training path, and dashboard loading/metrics on synthetic payloads.
 
 ## Experiment Commands
 
@@ -64,7 +65,7 @@ python -m ts_ifa.experiments.experiment_univariate --csv ../datasets/electricity
 Run neighbor extraction:
 
 ```powershell
-python -m ts_ifa.experiments.extraction --csv ../datasets/electricity/electricity.csv --lags 168 --horizon 24 --model chronos --model-kwargs '{"weights_path":"../weights/chronos2","context_mode":"past_only"}' --neighbors 5 --distance-space chronos --pool-representation --distance-metric cosine --train-stride 24 --eval-stride 24 --period 24 --output-dir outputs/results --save-name electricity_chronos_k5
+python -m ts_ifa.experiments.extraction --csv ../datasets/electricity/electricity.csv --lags 168 --horizon 24 --model chronos --model-kwargs '{"weights_path":"../weights/chronos2","context_mode":"past_only"}' --neighbors 5 --distance-space encoder --pool-representation --distance-metric cosine --train-stride 24 --eval-stride 24 --period 24 --output-dir outputs/results --save-name electricity_chronos_k5
 ```
 
 Add `--compute-ec` only when you also need neighbor-context residuals in the payload; it adds extra model forwards.
@@ -81,40 +82,113 @@ Train TS-IFA from extracted payloads:
 python -m ts_ifa.experiments.train_ts_ifa --input-dir outputs/results/electricity_chronos_k5 --epochs 20 --batch-size 256 --lr 1e-3 --normalization instance
 ```
 
-Evaluate payload baselines:
+Evaluate ridge and neighbor baselines from completed payloads:
 
 ```powershell
-python -m ts_ifa.experiments.evaluate_baselines --input-dir outputs/results/electricity_chronos_k5 --train-horizon-gate
+python -m ts_ifa.experiments.evaluate_baselines --input-dir outputs/results/electricity_chronos_k5 --family baselines --fit-baselines-on-eval
 ```
+
+Evaluate the four learned gates and the two target-aware oracles separately:
+
+```powershell
+python -m ts_ifa.experiments.evaluate_baselines --input-dir outputs/results/electricity_chronos_k5 --family gates
+```
+
+The two evaluator families write `baselines/visualization_payload.pt` and
+`gates/visualization_payload.pt`. The latter contains gate scores and targets
+for every extracted split. TS-IFA training writes
+`ts_ifa/eval_predictions.pt` alongside its aggregate metrics. These compact
+artifacts let visualization code inspect trained outputs without refitting models
+or reconstructing experiment splits.
+
+`--fit-baselines-on-eval` additionally fits the three trainable mixtures directly
+on T3 and reports their in-sample scores with an `_eval_fit` suffix. These are
+optimistic diagnostic bounds, not valid held-out results.
+
+## Interactive Dashboard
+
+Open `ts_ifa/visu/retrieval_dashboard.ipynb` after extraction and model-family
+evaluation. Set `CLUSTER_RUN_DIR` to the extraction run directory when using the
+cluster. On Colab, set `COLAB_RUN_DIR` and `COLAB_REPO_DIR`; the environment cell
+mounts Google Drive and installs the project in editable, no-dependency mode.
+The same cell installs `ipywidgets` only when it is missing from the active
+notebook environment.
+
+The notebook reads the saved extraction, baseline, and optional TS-IFA artifacts.
+It can sample query/retrieval examples, display horizon-wise raw predictions and
+error comparisons, and plot gate ROC curves and decision accuracy. It performs
+no feature construction, split construction, model fitting, or model inference.
 
 ## SLURM Experiments
 
 Edit the literal config block near the top of each script, especially `DATASETS` and `SETTINGS`, then submit from the repository root. Shared Chronos weights are expected under `../weights/chronos2/`. Model results are written under `outputs/results/`, while SLURM stdout and stderr are written under `script_outputs/`.
 
-Evaluate direct forecasts and all payload baselines:
+First evaluate direct forecasts and create the shared retrieval payloads:
+
+```bash
+sbatch ts_ifa/slurm/extraction/extract_payloads.slurm
+```
+
+After extraction succeeds, the three model-family jobs can run concurrently:
 
 ```bash
 sbatch ts_ifa/slurm/baselines/evaluate_baselines.slurm
-```
-
-Submit TS-IFA extraction, training, and evaluation:
-
-```bash
+sbatch ts_ifa/slurm/gates/evaluate_gates.slurm
 sbatch ts_ifa/slurm/training/train_ts_ifa.slurm
 ```
 
-The baseline job loops over datasets, lag/horizon settings, retrieval spaces, and neighbor counts. It evaluates direct persistence/Chronos forecasts on T3, extracts Chronos payloads, fits ridge-regularized mixtures on T1, fits CatBoost regressors on T2 to predict vanilla-minus-context loss, and evaluates on T3. A gate selects the context forecast when its predicted loss advantage is positive. The scalar gate receives the signed context-minus-vanilla horizon mean and standard deviation, while horizon gates receive the complete signed horizon vector. Both share 13 retrieval features covering signed neighbor differences, raw query/neighbor lookback moments, same-user ratio, mean neighbor age, neighbor-weight concentration, and mean retrieval distance. Ridge inputs are RMS-standardized without centering and its normal equations are averaged over observations, so `--l2` has stable strength across dataset units and payload sizes. The current jobs cap raw and Chronos-representation datastores at 30,000 and 15,000 windows respectively and use an evaluation stride of 128.
+Finally, build the table only after all desired family jobs have completed:
+
+```bash
+sbatch ts_ifa/slurm/results/build_results_table.slurm
+```
+
+The current scripts run electricity and hourly-summed solar for L-H settings
+168-24 and 672-168. All runs use Chronos, instance-normalized L2 retrieval,
+10 neighbors, online retrieval, and a 30,000-window datastore cap. The extraction
+job is the only job that loads Chronos and builds T1/T2/T3
+retrieval payloads. It also evaluates and plots the configured direct models on
+T3. Downstream jobs only read those payloads and write to separate `baselines/`,
+`gates/`, and `ts_ifa/` folders, so they do not overwrite one another.
+
+Baseline mixtures fit on T1. Gates fit on T2 and are evaluated only on T3. Four
+CatBoost gates are reported: binary improvement classifiers and signed
+loss-improvement regressors, each in scalar and horizon-wise form. Classifiers
+use balanced class weights and select context when the predicted improvement
+probability exceeds 0.5. Regressors select context when the predicted
+vanilla-minus-context loss is positive. The scalar models make one decision per
+forecast; horizon-wise models make one decision per forecast step. The two true
+oracles apply the corresponding decisions using T3 targets.
+
+All learned gates share the existing retrieval features. Scalar gates receive
+the signed context-minus-vanilla horizon mean and standard deviation, while
+horizon gates receive the complete signed horizon vector. Both also receive 13
+features covering signed neighbor differences, raw query/neighbor lookback
+moments, same-user ratio, mean neighbor age, neighbor-weight concentration, and
+mean retrieval distance. Ridge inputs are RMS-standardized without centering,
+and their normal equations are averaged over observations so `--l2` has stable
+strength across dataset units and payload sizes.
 
 Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then optionally instance-normalizes all query-scale tensors with the query statistics. The TS-IFA job trains the adapter on T1+T2 with AdamW, uses an evaluation stride of 128, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
 
-Both jobs finish by running `ts_ifa.results_table` and write
-`<OUT_ROOT>/results_mse.tex`. The result loader combines direct
-`univariate_summary.json`, adapter `baseline_metrics.json`, and
+The dedicated result job writes four tables:
+
+- `results.tex`: held-out methods from all three families; excludes gate oracles
+  and baselines fitted directly on T3.
+- `baselines_results.tex`: baseline methods plus the optimistic T3-fitted mixture
+  bounds, separated from regular methods and excluded from best-value bolding.
+- `gates_results.tex`: all four learned gates plus the scalar and horizon-wise
+  ground-truth-informed oracles.
+- `ts_ifa_results.tex`: Chronos and TS-IFA.
+
+The result loader combines direct
+`univariate_summary.json`, adapter `baseline_metrics.json`, gate
+`gate_metrics.json`, and
 `ts_ifa/eval_metrics.json` artifacts. Retrieval-dependent columns are qualified
 by retrieval setting so equally named baselines remain distinct. Table labels
-are shortened by default: for example, `chronos_in_euclidean_3_online/mix_1_learned`
-is displayed as `IN_L2_3/mix1`, while an explicitly unnormalized run named
-`chronos_raw_euclidean_3_fixed` is displayed as `raw_L2_3_fixed`. Run-specific
+are shortened by default: for example, `chronos_instance_euclidean_10_online/mix_1_learned`
+is displayed as `IN_L2_10/mix1`, while an explicitly unnormalized run named
+`chronos_raw_euclidean_10_fixed` is displayed as `raw_L2_10_fixed`. Run-specific
 `vanilla` columns are hidden by default.
 
 Generate or regenerate a table independently with:
@@ -124,7 +198,7 @@ python -m ts_ifa.results_table outputs/results \
   --metric mse --split eval \
   --datasets electricity,traffic \
   --dataset-settings electricity=168_24,672_168 \
-  --methods chronos,chronos_in_euclidean_1_online/linear_mix \
+  --methods chronos,chronos_instance_euclidean_1_online/linear_mix \
   --reference chronos --decimals 2
 ```
 
@@ -152,4 +226,4 @@ repeated configurations.
 
 ## Outputs
 
-Write generated model artifacts under `outputs/results/`; reserve `outputs/hydra/` for Hydra job metadata. Typical files include `*_prediction_payload.pt`, `baseline_metrics.csv`, `ts_ifa.pt`, `training_nmse.pdf`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.
+Write generated model artifacts under `outputs/results/`; reserve `outputs/hydra/` for Hydra job metadata. Typical files include `*_prediction_payload.pt`, `baseline_metrics.csv`, `visualization_payload.pt`, `ts_ifa.pt`, `eval_predictions.pt`, `training_nmse.pdf`, summary CSV/JSON files, and plots under `plots/`. Do not commit datasets, model weights, cluster outputs, or machine-specific paths.
