@@ -4,7 +4,7 @@
 #SBATCH --output=script_outputs/tsifa_baselines_%j.out
 #SBATCH --error=script_outputs/tsifa_baselines_%j.err
 #SBATCH --time=23:00:00
-#SBATCH --partition=h100
+#SBATCH --partition=h100-bis
 #SBATCH --mem=40000
 
 set -euo pipefail
@@ -26,7 +26,7 @@ RAW_FEATURE_NORMALIZATION="instance" # instance or none
 SPLITS="0.3,0.35,0.15,0.2"
 RETRIEVAL_MODE="online"
 TRAIN_STRIDE=24
-EVAL_STRIDE=512
+EVAL_STRIDE=256
 PERIOD=24
 SEED=1
 
