@@ -1,4 +1,4 @@
-"""Chronos-2 wrapper for the lightweight extraction scripts."""
+"""Chronos-2 wrapper for the retrieval-augmentation scripts."""
 
 from __future__ import annotations
 

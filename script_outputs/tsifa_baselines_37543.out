@@ -1,0 +1,54 @@
+2026-06-25T18:48:00+02:00 job start kind=baseline_families
+2026-06-25T18:48:00+02:00 baseline start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25 18:48:03,796 INFO [__main__] ========================================================================
+2026-06-25 18:48:03,813 INFO [__main__] experiment start kind=baselines input=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online
+2026-06-25 18:48:03,813 INFO [__main__] payload load start
+2026-06-25 18:48:19,042 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:48:19,042 INFO [__main__] mixture fitting start
+2026-06-25 18:48:21,174 INFO [__main__] mixture fitting done
+2026-06-25 18:48:21,174 INFO [__main__] evaluation start split=eval
+2026-06-25 18:48:21,191 INFO [__main__] evaluation done rows=11
+2026-06-25 18:48:21,530 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online/baselines
+2026-06-25 18:48:21,531 INFO [__main__] experiment done seconds=17.73
+2026-06-25 18:48:21,531 INFO [__main__] ========================================================================
+2026-06-25T18:48:21+02:00 baseline done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25T18:48:21+02:00 baseline start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25 18:48:24,817 INFO [__main__] ========================================================================
+2026-06-25 18:48:24,821 INFO [__main__] experiment start kind=baselines input=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online
+2026-06-25 18:48:24,821 INFO [__main__] payload load start
+2026-06-25 18:49:16,361 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:49:16,362 INFO [__main__] mixture fitting start
+2026-06-25 18:49:30,506 INFO [__main__] mixture fitting done
+2026-06-25 18:49:30,506 INFO [__main__] evaluation start split=eval
+2026-06-25 18:49:30,592 INFO [__main__] evaluation done rows=11
+2026-06-25 18:49:32,491 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online/baselines
+2026-06-25 18:49:32,491 INFO [__main__] experiment done seconds=67.67
+2026-06-25 18:49:32,491 INFO [__main__] ========================================================================
+2026-06-25T18:49:33+02:00 baseline done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25T18:49:33+02:00 baseline start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25 18:49:35,979 INFO [__main__] ========================================================================
+2026-06-25 18:49:35,983 INFO [__main__] experiment start kind=baselines input=outputs/results/solar/168_24/chronos_instance_euclidean_10_online
+2026-06-25 18:49:35,983 INFO [__main__] payload load start
+2026-06-25 18:49:39,725 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:49:39,725 INFO [__main__] mixture fitting start
+2026-06-25 18:49:39,954 INFO [__main__] mixture fitting done
+2026-06-25 18:49:39,954 INFO [__main__] evaluation start split=eval
+2026-06-25 18:49:39,957 INFO [__main__] evaluation done rows=11
+2026-06-25 18:49:40,024 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_instance_euclidean_10_online/baselines
+2026-06-25 18:49:40,024 INFO [__main__] experiment done seconds=4.04
+2026-06-25 18:49:40,024 INFO [__main__] ========================================================================
+2026-06-25T18:49:40+02:00 baseline done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25T18:49:40+02:00 baseline start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25 18:49:43,486 INFO [__main__] ========================================================================
+2026-06-25 18:49:43,490 INFO [__main__] experiment start kind=baselines input=outputs/results/solar/672_168/chronos_instance_euclidean_10_online
+2026-06-25 18:49:43,490 INFO [__main__] payload load start
+2026-06-25 18:49:50,160 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:49:50,160 INFO [__main__] mixture fitting start
+2026-06-25 18:49:51,327 INFO [__main__] mixture fitting done
+2026-06-25 18:49:51,327 INFO [__main__] evaluation start split=eval
+2026-06-25 18:49:51,337 INFO [__main__] evaluation done rows=11
+2026-06-25 18:49:51,542 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_instance_euclidean_10_online/baselines
+2026-06-25 18:49:51,542 INFO [__main__] experiment done seconds=8.06
+2026-06-25 18:49:51,542 INFO [__main__] ========================================================================
+2026-06-25T18:49:51+02:00 baseline done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25T18:49:51+02:00 job done kind=baseline_families

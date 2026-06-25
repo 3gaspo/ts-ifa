@@ -1,9 +1,4 @@
-"""CSV dataset and pretrained-model loading for extraction experiments.
-
-This module is intentionally small. It keeps only the pieces needed by the
-neighbor retrieval scripts: a date-indexed CSV, deterministic window slicing,
-optional global past/future covariates, and loading a pretrained forecaster.
-"""
+"""CSV dataset and pretrained-model loading for retrieval-augmented experiments."""
 
 from __future__ import annotations
 

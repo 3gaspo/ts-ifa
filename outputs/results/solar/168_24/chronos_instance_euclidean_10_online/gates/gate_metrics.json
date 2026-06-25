@@ -2,34 +2,34 @@
   {
     "split": "eval",
     "baseline": "gated_context_classifier_scalar",
-    "mse": 844.4284057617188,
-    "mae": 12.441519737243652,
-    "nmse": 0.3347400426864624,
-    "relative_nmse_improvement_pct": -4.184836387634277
+    "mse": 851.2606201171875,
+    "mae": 12.376968383789062,
+    "nmse": 0.3313960134983063,
+    "relative_nmse_improvement_pct": -3.1440374851226807
   },
   {
     "split": "eval",
     "baseline": "gated_context_classifier_horizon",
-    "mse": 817.666748046875,
-    "mae": 12.196659088134766,
-    "nmse": 0.3220009207725525,
-    "relative_nmse_improvement_pct": -0.21989914774894714
+    "mse": 810.7948608398438,
+    "mae": 12.154048919677734,
+    "nmse": 0.3186086416244507,
+    "relative_nmse_improvement_pct": 0.8359172940254211
   },
   {
     "split": "eval",
     "baseline": "gated_context_regressor_scalar",
-    "mse": 804.9906616210938,
-    "mae": 12.193598747253418,
-    "nmse": 0.3169177770614624,
-    "relative_nmse_improvement_pct": 1.362183690071106
+    "mse": 821.568115234375,
+    "mae": 12.259278297424316,
+    "nmse": 0.3203745186328888,
+    "relative_nmse_improvement_pct": 0.28630393743515015
   },
   {
     "split": "eval",
     "baseline": "gated_context_regressor_horizon",
-    "mse": 818.0394897460938,
-    "mae": 12.270780563354492,
-    "nmse": 0.3210645616054535,
-    "relative_nmse_improvement_pct": 0.07153423875570297
+    "mse": 810.8102416992188,
+    "mae": 12.177701950073242,
+    "nmse": 0.3180115520954132,
+    "relative_nmse_improvement_pct": 1.0217560529708862
   },
   {
     "split": "eval",

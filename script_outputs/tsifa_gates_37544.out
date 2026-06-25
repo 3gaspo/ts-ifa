@@ -1,0 +1,54 @@
+2026-06-25T18:48:06+02:00 job start kind=gate_families
+2026-06-25T18:48:06+02:00 gates start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25 18:48:09,664 INFO [__main__] ========================================================================
+2026-06-25 18:48:09,667 INFO [__main__] experiment start kind=gates input=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online
+2026-06-25 18:48:09,667 INFO [__main__] payload load start
+2026-06-25 18:48:19,040 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:48:19,041 INFO [__main__] context gate fitting start objectives=classifier,regressor shapes=scalar,horizon
+2026-06-25 18:49:07,341 INFO [__main__] context gate fitting done
+2026-06-25 18:49:07,341 INFO [__main__] evaluation start split=eval
+2026-06-25 18:49:07,351 INFO [__main__] evaluation done rows=6
+2026-06-25 18:49:07,740 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online/gates
+2026-06-25 18:49:07,740 INFO [__main__] experiment done seconds=58.08
+2026-06-25 18:49:07,741 INFO [__main__] ========================================================================
+2026-06-25T18:49:08+02:00 gates done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25T18:49:08+02:00 gates start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25 18:49:11,856 INFO [__main__] ========================================================================
+2026-06-25 18:49:11,860 INFO [__main__] experiment start kind=gates input=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online
+2026-06-25 18:49:11,860 INFO [__main__] payload load start
+2026-06-25 18:49:24,083 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:49:24,083 INFO [__main__] context gate fitting start objectives=classifier,regressor shapes=scalar,horizon
+2026-06-25 18:59:08,388 INFO [__main__] context gate fitting done
+2026-06-25 18:59:08,388 INFO [__main__] evaluation start split=eval
+2026-06-25 18:59:08,429 INFO [__main__] evaluation done rows=6
+2026-06-25 18:59:11,740 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online/gates
+2026-06-25 18:59:11,741 INFO [__main__] experiment done seconds=599.88
+2026-06-25 18:59:11,741 INFO [__main__] ========================================================================
+2026-06-25T18:59:12+02:00 gates done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25T18:59:12+02:00 gates start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25 18:59:16,147 INFO [__main__] ========================================================================
+2026-06-25 18:59:16,152 INFO [__main__] experiment start kind=gates input=outputs/results/solar/168_24/chronos_instance_euclidean_10_online
+2026-06-25 18:59:16,152 INFO [__main__] payload load start
+2026-06-25 18:59:18,807 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:59:18,808 INFO [__main__] context gate fitting start objectives=classifier,regressor shapes=scalar,horizon
+2026-06-25 18:59:37,896 INFO [__main__] context gate fitting done
+2026-06-25 18:59:37,896 INFO [__main__] evaluation start split=eval
+2026-06-25 18:59:37,897 INFO [__main__] evaluation done rows=6
+2026-06-25 18:59:38,010 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_instance_euclidean_10_online/gates
+2026-06-25 18:59:38,011 INFO [__main__] experiment done seconds=21.86
+2026-06-25 18:59:38,011 INFO [__main__] ========================================================================
+2026-06-25T18:59:38+02:00 gates done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-25T18:59:38+02:00 gates start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25 18:59:41,272 INFO [__main__] ========================================================================
+2026-06-25 18:59:41,276 INFO [__main__] experiment start kind=gates input=outputs/results/solar/672_168/chronos_instance_euclidean_10_online
+2026-06-25 18:59:41,276 INFO [__main__] payload load start
+2026-06-25 18:59:43,958 INFO [__main__] payload load done splits=train,oracle,eval
+2026-06-25 18:59:43,958 INFO [__main__] context gate fitting start objectives=classifier,regressor shapes=scalar,horizon
+2026-06-25 19:03:46,779 INFO [__main__] context gate fitting done
+2026-06-25 19:03:46,779 INFO [__main__] evaluation start split=eval
+2026-06-25 19:03:46,783 INFO [__main__] evaluation done rows=6
+2026-06-25 19:03:47,516 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_instance_euclidean_10_online/gates
+2026-06-25 19:03:47,516 INFO [__main__] experiment done seconds=246.24
+2026-06-25 19:03:47,516 INFO [__main__] ========================================================================
+2026-06-25T19:03:48+02:00 gates done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-25T19:03:48+02:00 job done kind=gate_families

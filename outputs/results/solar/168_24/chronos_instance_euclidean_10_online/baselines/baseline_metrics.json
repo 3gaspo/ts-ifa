@@ -42,26 +42,26 @@
   {
     "split": "eval",
     "baseline": "mix_0_weighted",
-    "mse": 799.2443484630859,
-    "mae": 12.206765927365584,
-    "nmse": 0.31410427502855925,
-    "relative_nmse_improvement_pct": 2.2378610245602175
+    "mse": 798.5392801963909,
+    "mae": 12.231362243301744,
+    "nmse": 0.31378378833917137,
+    "relative_nmse_improvement_pct": 2.3376096327727884
   },
   {
     "split": "eval",
     "baseline": "mix_1_learned",
-    "mse": 778.0951153442173,
-    "mae": 12.166063922604001,
-    "nmse": 0.3071984383714312,
-    "relative_nmse_improvement_pct": 4.387240758263162
+    "mse": 759.6934658438354,
+    "mae": 12.141692539255093,
+    "nmse": 0.3007854323405347,
+    "relative_nmse_improvement_pct": 6.383231378848742
   },
   {
     "split": "eval",
     "baseline": "mix_2_full_horizon",
-    "mse": 813.9505615234375,
-    "mae": 12.571492195129395,
-    "nmse": 0.32097184658050537,
-    "relative_nmse_improvement_pct": 0.1003909632563591
+    "mse": 1125.8505859375,
+    "mae": 13.909516334533691,
+    "nmse": 0.45664718747138977,
+    "relative_nmse_improvement_pct": -42.127342224121094
   },
   {
     "split": "eval",

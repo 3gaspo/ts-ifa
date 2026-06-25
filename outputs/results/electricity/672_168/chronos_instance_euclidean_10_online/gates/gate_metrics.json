@@ -2,34 +2,34 @@
   {
     "split": "eval",
     "baseline": "gated_context_classifier_scalar",
-    "mse": 5439557.0,
-    "mae": 220.2356414794922,
-    "nmse": 0.23868918418884277,
-    "relative_nmse_improvement_pct": -3.9251835346221924
+    "mse": 5512781.5,
+    "mae": 220.53326416015625,
+    "nmse": 0.23423995077610016,
+    "relative_nmse_improvement_pct": -1.987988829612732
   },
   {
     "split": "eval",
     "baseline": "gated_context_classifier_horizon",
-    "mse": 5214536.5,
-    "mae": 213.97576904296875,
-    "nmse": 0.23582009971141815,
-    "relative_nmse_improvement_pct": -2.675985097885132
+    "mse": 5449660.0,
+    "mae": 217.53872680664062,
+    "nmse": 0.23560667037963867,
+    "relative_nmse_improvement_pct": -2.5830581188201904
   },
   {
     "split": "eval",
     "baseline": "gated_context_regressor_scalar",
-    "mse": 4926669.0,
-    "mae": 215.6522216796875,
-    "nmse": 0.24327725172042847,
-    "relative_nmse_improvement_pct": -5.922826766967773
+    "mse": 5385368.5,
+    "mae": 218.25103759765625,
+    "nmse": 0.2399532049894333,
+    "relative_nmse_improvement_pct": -4.4755377769470215
   },
   {
     "split": "eval",
     "baseline": "gated_context_regressor_horizon",
-    "mse": 5540213.5,
-    "mae": 219.05508422851562,
-    "nmse": 0.23797130584716797,
-    "relative_nmse_improvement_pct": -3.612619400024414
+    "mse": 5349834.5,
+    "mae": 216.4982452392578,
+    "nmse": 0.2361302524805069,
+    "relative_nmse_improvement_pct": -2.811025619506836
   },
   {
     "split": "eval",

@@ -14,11 +14,12 @@
     "memory_hidden": 128,
     "mixture_hidden": 128,
     "mixture_key_dim": 64,
+    "mixture_gate_init": -6.0,
     "dropout": 0.0
   },
   "parameters": {
-    "total": 1385160,
-    "trainable": 1385160
+    "total": 1535984,
+    "trainable": 1535984
   },
   "training": {
     "optimizer": "AdamW",
@@ -28,6 +29,6 @@
     "normalization": "instance",
     "beta": 0.01,
     "gamma": 0.0,
-    "seconds": 321.12903602048755
+    "seconds": 1549.7022880502045
   }
 }
