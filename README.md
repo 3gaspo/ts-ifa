@@ -33,9 +33,9 @@ The default chronological ratios are `0.30,0.35,0.15,0.20`:
 - T2: context-gate training and the second part of TS-IFA training.
 - T3: untouched final evaluation for direct baselines, mixtures, gates, and TS-IFA.
 
-Retrieval defaults to L2 (`--distance-metric euclidean`) with `--distance-space instance`, which instance-normalizes every time-domain lookback independently. The other spaces are `raw`, for unnormalized lookbacks, and `encoder`, for the loaded forecasting model's representation. Encoder retrieval currently recomputes datastore representations for every query date and is therefore substantially more expensive; raw and instance retrieval do not call the model during neighbor search. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
+Retrieval defaults to L2 (`--distance-metric euclidean`) with `--distance-space instance`, which instance-normalizes every time-domain lookback independently. The other spaces are `raw`, for unnormalized lookbacks, and `encoder`, for the loaded forecasting model's representation. Encoder retrieval currently recomputes datastore representations for every query date and is therefore substantially more expensive; raw and instance retrieval do not call the model during neighbor search. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--datastore-stride` controls aligned retrieval datastore density and must be a multiple of `--period` while period alignment is enabled, so all store windows remain in the same phase as the query. `--train-stride`, `--oracle-stride`, and `--eval-stride` separately control T1, T2, and T3 query density. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
 
-The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
+The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. Its final adaptation now wraps the learned mixture proposal in an explicit residual gate from the vanilla forecast, initialized near identity. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
 
 ## Smoke Checks
 
@@ -65,7 +65,7 @@ python -m ts_ifa.experiments.experiment_univariate --csv ../datasets/electricity
 Run neighbor extraction:
 
 ```powershell
-python -m ts_ifa.experiments.extraction --csv ../datasets/electricity/electricity.csv --lags 168 --horizon 24 --model chronos --model-kwargs '{"weights_path":"../weights/chronos2","context_mode":"past_only"}' --neighbors 5 --distance-space encoder --pool-representation --distance-metric cosine --train-stride 24 --eval-stride 24 --period 24 --output-dir outputs/results --save-name electricity_chronos_k5
+python -m ts_ifa.experiments.extraction --csv ../datasets/electricity/electricity.csv --lags 168 --horizon 24 --model chronos --model-kwargs '{"weights_path":"../weights/chronos2","context_mode":"past_only"}' --neighbors 5 --distance-space encoder --pool-representation --distance-metric cosine --datastore-stride 24 --train-stride 24 --oracle-stride 24 --eval-stride 24 --period 24 --output-dir outputs/results --save-name electricity_chronos_k5
 ```
 
 Add `--compute-ec` only when you also need neighbor-context residuals in the payload; it adds extra model forwards.
@@ -145,8 +145,9 @@ sbatch ts_ifa/slurm/results/build_results_table.slurm
 
 The current scripts run electricity and hourly-summed solar for L-H settings
 168-24 and 672-168. All runs use Chronos, instance-normalized L2 retrieval,
-10 neighbors, online retrieval, and a 30,000-window datastore cap. The extraction
-job is the only job that loads Chronos and builds T1/T2/T3
+10 neighbors, online retrieval, 24-step T1/T2 query strides, a 128-step T3
+evaluation stride, and a 30,000-window datastore cap with a 24-step aligned
+datastore stride. The extraction job is the only job that loads Chronos and builds T1/T2/T3
 retrieval payloads. It also evaluates and plots the configured direct models on
 T3. Downstream jobs only read those payloads and write to separate `baselines/`,
 `gates/`, and `ts_ifa/` folders, so they do not overwrite one another.
@@ -169,9 +170,9 @@ mean retrieval distance. Ridge inputs are RMS-standardized without centering,
 and their normal equations are averaged over observations so `--l2` has stable
 strength across dataset units and payload sizes.
 
-Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then optionally instance-normalizes all query-scale tensors with the query statistics. The TS-IFA job trains the adapter on T1+T2 with AdamW, uses an evaluation stride of 128, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
+Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then optionally instance-normalizes all query-scale tensors with the query statistics. The TS-IFA job trains the adapter on T1+T2 with AdamW, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
 
-The dedicated result job writes four tables:
+The dedicated result job writes four nMSE tables:
 
 - `results.tex`: held-out methods from all three families; excludes gate oracles
   and baselines fitted directly on T3.
@@ -195,7 +196,7 @@ Generate or regenerate a table independently with:
 
 ```bash
 python -m ts_ifa.results_table outputs/results \
-  --metric mse --split eval \
+  --metric nmse --split eval \
   --datasets electricity,traffic \
   --dataset-settings electricity=168_24,672_168 \
   --methods chronos,chronos_instance_euclidean_1_online/linear_mix \

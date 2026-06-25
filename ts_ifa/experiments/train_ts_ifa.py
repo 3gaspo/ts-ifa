@@ -325,6 +325,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--memory-hidden", type=int, default=128)
     parser.add_argument("--mixture-hidden", type=int, default=128)
     parser.add_argument("--mixture-key-dim", type=int, default=64)
+    parser.add_argument("--mixture-gate-init", type=float, default=-6.0)
     parser.add_argument("--dropout", type=float, default=0.0)
     return parser.parse_args()
 
@@ -419,6 +420,7 @@ def main() -> dict[str, Path]:
         memory_hidden=args.memory_hidden,
         mixture_hidden=args.mixture_hidden,
         mixture_key_dim=args.mixture_key_dim,
+        mixture_gate_init=args.mixture_gate_init,
         dropout=args.dropout,
     )
     device = resolve_device(args.device)

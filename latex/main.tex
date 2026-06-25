@@ -1,345 +1,454 @@
 \documentclass[11pt]{article}
 
+\usepackage[T1]{fontenc}
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{amsmath,amssymb,bm}
-\usepackage{mathtools}
-
-\usepackage{tikz}
-\usetikzlibrary{positioning,arrows.meta,calc}
-
-\usepackage{booktabs}
+\usepackage{booktabs,tabularx}
+\usepackage[hidelinks]{hyperref}
+\makeatletter
+\g@addto@macro\UrlBreaks{\do\-\do\_}
+\makeatother
+\Urlmuskip=0mu plus 1mu
 
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.7em}
+\setlength{\parskip}{0.65em}
+\newcommand{\method}[1]{\texttt{#1}}
 
-\title{\vspace{-1em}
-Retrieval-based Residual Adaptation
-\vspace{-0.5em}}
+\title{\vspace{-1em}TS-IFA: Current Model and Experimental Design\vspace{-0.5em}}
 \author{}
 \date{}
 
 \begin{document}
-
 \maketitle
 
+\section{Overall goal and mathematical setting}
 
-\section*{Setting}
+The goal of TS-IFA is to adapt a frozen pretrained forecaster at inference time
+using retrieved historical evidence, without updating the backbone parameters.
+The repository compares this learned adapter to simpler output-space adapters,
+learned gates, and target-aware oracles.  All methods take the same basic
+objects: a query history, the frozen model forecast, and $K$ retrieved complete
+historical windows.
 
-We consider a pretrained forecasting model with an encoder $g$ and forecasting head $h$
+For a query lookback $x\in\mathbb{R}^{L}$ and target
+$y\in\mathbb{R}^{H}$, a frozen forecaster $f$ produces the vanilla forecast
 \[
-f(x)=h(g(x)),
+  \hat y=f(x).
 \]
-where $x\in\mathbb{R}^L$ is a lookback window and $y\in\mathbb{R}^H$ is the future horizon. The vanilla prediction is
+The implementation may also supply dataset covariates to $f$; they are omitted
+from the notation.  Retrieval returns $K$ complete historical examples
 \[
-\hat y = f(x)\in\mathbb{R}^H.
+  \mathcal N(x)=\{(x_k,y_k,d_k)\}_{k=1}^{K},
+  \qquad x_k\in\mathbb{R}^{L},\quad y_k\in\mathbb{R}^{H},
 \]
-
-\begin{figure}[!h]
-    \centering
-    \includegraphics[width=0.5\linewidth]{pretrained model.png}
-    \caption{Illustration of a pretrained model with an encoder and forecasting head.}
-    \label{fig:placeholder}
-\end{figure}
-
-We assume the pretrained model can take optional covariates as inputs, provided as $N$ additional windows, over both lookback and horizon:
-\[\hat{y}_c=f(x,Z_c), \qquad Z_c \in \mathbb{R}^{N\times (L+H)}.\]
-
-Our goal is to improve the vanilla prediction $\hat{y}$, using information from ``neighboring" windows. We propose an adapter module which remains lightweight and interpretable. 
-
-\section*{Sampling neighbors}
-
-At inference, we fetch a \textit{datastore} composed of past windows aligned with $x$. These windows come from the current user as well as other accessible users. We may fix a maximum number of windows, a stride, upper and lower bound for the dates, and a frequency to align windows. For example, we may constrain our search to geographically neighboring users, using data from last year, with windows starting at the same hour of the day at the current input.
-
-Using the pretrained model's encoder, we build representations $\phi_x=g(x)$ for each window. For a given $x$, a $k$-NN model retrieves $K$ example past windows
+ordered by distance $d_k$.  When the backbone exposes a context-conditioned
+mode, the scaled trajectories $[x_k,y_k]$ can be passed as context channels to
+obtain
 \[
-\mathcal{N}(x)=\{(x_k,y_k)\}_{k=1}^K, \qquad x_k \in \mathbb{R}^L, y_k \in \mathbb{R}^H
+  \hat y^c=f\!\left(x;\{[x_k,y_k]\}_{k=1}^{K}\right).
 \]
-ordered by increasing distance
+Each neighbor is also forecast without retrieved context,
+$\hat y_k=f(x_k)$, and its realized residual is
 \[
-d_k = \|\phi_x -\phi_{x_k}\|_2.
+  e_k=y_k-\hat y_k.
 \]
+Thus extraction computes one vanilla query forecast, one context-conditioned
+query forecast, and the $K$ neighbor forecasts needed by residual methods.
 
-\begin{figure}[!h]
-    \centering
-    \includegraphics[width=0.5\linewidth]{neighbors.png}
-    \caption{Example windows retrieval pipeline.}
-    \label{fig:placeholder}
-\end{figure}
-
-\newpage
-For each input $x$, we store in memory:
-\begin{itemize}
-    \item Input's lookback $\quad x \in \mathbb{R}^{L}$
-    \item Examples' lookbacks $\quad X_c = (x_k)_{k=1}^K \in \mathbb{R}^{K \times L}$
-    \item Examples' horizons $Y_c = (y_k)_{k=1}^K\in \mathbb{R}^{K\times H}$
-\end{itemize}
-
-
-\section*{Extracting additional information from examples}
-
-Using the examples, $K+1$ additional predictions can be computed:
-\begin{itemize}
-    \item Example-conditioned prediction  $\hat y^{c}=f(x,\mathcal{N}(x)) \in \mathbb{R}^H$
-    \item Examples' univariate predictions $\hat{Y}_c=(\hat y_k)_{k=1}^K=(f(x_k))_{k=1}^K\in \mathbb{R}^{K\times H}$
-\end{itemize}
-
-\begin{figure}[!h]
-    \centering
-    \includegraphics[width=0.6\linewidth]{predictions.png}
-    \caption{Example-conditioned prediction and examples' univariate predictions.}
-    \label{fig:placeholder}
-\end{figure}
-
-\newpage
-
-\section*{Baseline adapters}
-
-Empirical experiments have shown that using $\hat{y}^c$ instead of $\hat{y}$ with current foundation models does not consistently improve performance. In fact, it may degrade it on average.
-
-Yet, various naive baselines can be thought-of to improve $\hat{y}$ using $\hat{y}^c$ and $Y_c$:
-
-\begin{itemize}
-    \item Weighted mixture of horizons: 
-    $\hat{y}_{mix_0}=(1-\lambda)\hat{y}+\lambda\sum_{k=1}^K w_k y_k, \qquad w_k=\frac{\exp(-d_k)}{\sum_{j=1}^K \exp(-d_j)}$ 
-    
-    \item Learned mixture of horizons
-    $\hat{y}_{mix_1}=\hat{y}+a_0\hat{y}+\sum_{k=1}^K a_k y_k$
-    \item Full mixture
-    $\forall h\in \{1,\dots,H\},\,
-    \hat{y}_{mix_2,h}=\hat{y}_h+a_{0,h}\hat{y}_h+
-    \sum_{k=1}^K a_{k,h} y_{k,h} + b_h \hat{y}^c_{h}$
-    \item Scalar gated context-conditioned forecast, with one decision per window:
-    \[
-    s=\sigma_{\mathrm{scalar}}\!\left(x,\mathcal{N}(x),\hat y,\hat y^c\right)\in\{0,1\},
-    \qquad
-    \hat y_{\mathrm{gate\text{-}s}}=(1-s)\hat y+s\hat y^c.
-    \]
-    \item Horizon-wise gated context-conditioned forecast, with one decision per window and horizon:
-    \[
-    s_h=\sigma_h\!\left(x,\mathcal{N}(x),\hat y,\hat y^c\right)\in\{0,1\},
-    \qquad
-    \hat y_{\mathrm{gate\text{-}h},h}=(1-s_h)\hat y_h+s_h\hat y^c_h.
-    \]
-\end{itemize}
-
-The linear adapters are fitted on residual labels $y-\hat y$. Thus $a=0$
-recovers the vanilla forecast, and an $\ell_2$ penalty keeps the learned
-correction small. The coefficients may be obtained by regularized closed-form
-least squares. The functions $\sigma_{\mathrm{scalar}}$ and
-$\{\sigma_h\}_{h=1}^H$ are learned binary gates using only information
-available at inference.
-
-\section*{Our proposed model: Adaptive Retrieval-Augmented \& Residual Mixture (ARARM)}
-
-Using the various data and additional prediction we have computed, we now have access to complementary sources of information:
-\begin{itemize}
-    \item The vanilla prediction $\hat{y}$
-    \item The context-conditioned prediction $\hat{y}^c \in \mathbb{R}^H$
-    \item Local errors by the model $R_c = Y_c-\hat Y_c \in \mathbb{R}^{K\times H}$
-    \item Ground-truth horizons from similar examples $Y_c \in \mathbb{R}^{K\times H}$ 
-\end{itemize}
-
-We also define joint input-prediction representations
+Retrieval is represented by a feature map $\psi$ and a distance $\rho$:
 \[
-m=[x,\hat y]\in\mathbb{R}^{L+H},
-\qquad
-M_c=[X_c,\hat Y_c]\in\mathbb{R}^{K\times(L+H)}.
+\mathcal N(x)=\operatorname{KNN}_K
+\left(\psi(x),\{\psi(x_i)\}_i;\rho\right),\qquad
+\psi(x)=
+\begin{cases}
+x, & \text{raw},\\[2mm]
+(x-\mu_x)/(\sigma_x+\varepsilon), & \text{instance-normalized},\\[2mm]
+g(x), & \text{encoder ablation},
+\end{cases}
 \]
-
-Our goal is to efficiently mix those sources of information to produce a new prediction $y_{final}$ which performs better than vanilla $\hat{y}$. Moreover, we want the adapter to remain lightweight and interpretable.
-
-We will use cross-attention layers, defined as
+where $g(x)$ is a backbone representation when encoder-space retrieval is
+requested.  Retrieval is shape-based, but the adapters operate on the query's
+level and scale.  Let $(\mu_x,\sigma_x)$ and $(\mu_k,\sigma_k)$ be statistics
+of the query and neighbor lookbacks.  Before a neighbor value $v_k$ (lookback,
+horizon, or forecast) is used, it is transformed as
 \[
-\operatorname{Attn}(Q,K,V)
-=
-\operatorname{softmax}
-\left(
-\frac{(QW_Q)(KW_K)^T}{\sqrt d}
-\right)
-VW_V,
+  \mathcal S_{k\rightarrow x}(v_k)
+  =\frac{v_k-\mu_k}{\sigma_k}\sigma_x+\mu_x.
 \]
-
-across two deep layers to produce a total of four \textit{adaptative} (i.e. context-informed) predictions $\hat{y}, \hat{y}^c, y_r, y_m$, which will be merged by a final mixing network.
-
-\newpage
-\textbf{Residual correction branch}
-
-This branch compares $[x,\hat y]$ with example windows $[x_k,\hat y_k]$, to merge associated residuals $y_k-\hat y_k$ into $Z_r$ which estimates how the pretrained model was wrong in similar states.
+Residuals contain no additive level and receive only the scale transform,
 \[
-z_r=\operatorname{Attn}(m,M_c,R_c)\in\mathbb{R}^{1\times H},
+  \mathcal S^{\mathrm{res}}_{k\rightarrow x}(e_k)
+  =\frac{e_k}{\sigma_k}\sigma_x.
 \]
+All neighbor quantities below refer to these query-scale versions.
+
+\section{Output-space adapters and baselines}
+
+For distance weighting, the code first normalizes distances within each query,
 \[
-y_r=\hat y+\operatorname{MLP}(Z_r) \in\mathbb{R}^{1\times H}
+  \bar d_k=\frac{d_k-\min_j d_j}{\max(\operatorname{std}_j d_j,\varepsilon)},
+  \qquad
+  w_k=\frac{\exp(-\bar d_k)}{\sum_j\exp(-\bar d_j)}.
 \]
+The following non-trainable baselines are evaluated:
+\begin{align*}
+\text{context conditioned:}\quad &\hat y^c,\\
+\text{unweighted neighbor mean:}\quad &K^{-1}\sum_k y_k,\\
+\text{weighted neighbor mean:}\quad &\sum_k w_k y_k,\\
+\text{weighted residual correction:}\quad
+  &\hat y+\sum_k w_k e_k.
+\end{align*}
 
-\textbf{Memory branch}
+Three trainable mixtures are fitted on a calibration split by ridge regression
+on the residual target $y-\hat y$:
+\begin{align*}
+\text{convex weighted mix:}\quad
+  \hat y^{(0)}
+  &=(1-\lambda)\hat y+\lambda\sum_k w_k y_k,
+  &&\lambda\in[0,1],\\
+\text{shared learned mix:}\quad
+  \hat y^{(1)}_h
+  &=\hat y_h+a_0\hat y_h+\sum_k a_k y_{k,h},\\
+\text{horizon-specific full mix:}\quad
+  \hat y^{(2)}_h
+  &=\hat y_h+a_{0,h}\hat y_h+
+    \sum_k a_{k,h}y_{k,h}+b_h\hat y^c_h.
+\end{align*}
+The regressions have no intercept, so zero coefficients recover the vanilla
+forecast.  Features are RMS-standardized without centering, and the normal
+equations are averaged over observations before adding the $\ell_2$
+coefficient.  This keeps regularization comparable across dataset units and
+payload sizes.
 
-This branch compares $x$ with the retrieved lookbacks $x_k$ and returns a learned weighted average of their realized horizons $y_k$.
+\section{Learned gates and target-aware oracles}
+\label{sec:gates}
+
+The gate family selects between $\hat y$ and $\hat y^c$.  The implemented
+learned gates use classifier and signed-loss-regressor objectives, each with a
+scalar and a horizon-wise output.
+
+For a target $y$, define the improvement of context over vanilla at horizon $h$
+as
 \[
-z_{m}=\operatorname{Attn}(x,X_c,Y_c)\in\mathbb{R}^{1\times H},
+  \Delta_h=(y_h-\hat y_h)^2-(y_h-\hat y^c_h)^2.
 \]
+The scalar target is $H^{-1}\sum_h\Delta_h$; the horizon target is the vector
+$(\Delta_h)_{h=1}^{H}$.  Classifiers predict whether the relevant improvement
+is positive and select context at probability greater than $0.5$.  Regressors
+predict the signed improvement and select context when it is positive.
+Scalar gates make one decision for the complete forecast, whereas horizon-wise
+gates make one decision per horizon step.
+
+All gates use information available at inference.  Scalar models receive the
+mean and standard deviation of $\hat y^c-\hat y$; horizon models receive its
+full $H$-vector.  Both receive 13 common features: the mean weighted-neighbor
+minus vanilla forecast, mean weighted residual, query mean and standard
+deviation, four summaries of neighbor-lookback means and standard deviations,
+same-series neighbor ratio, mean neighbor age, standard deviation and maximum
+of the neighbor weights, and mean retrieval distance.  Classifier gates use
+balanced class weights.
+
+Two target-aware upper bounds are also evaluated:
+\begin{align*}
+\text{scalar oracle:}\quad
+  &\text{choose the lower-MSE forecast between $\hat y$ and $\hat y^c$ for each sample},\\
+\text{horizon oracle:}\quad
+  &\text{choose the lower-squared-error forecast independently for each horizon step}.
+\end{align*}
+These methods use the target to make their decision.  They are therefore
+oracles, not deployable gates, and are reported only in the dedicated gate
+table.
+
+\section{TS-IFA model}
+
+TS-IFA is a lightweight output-space adapter.  Its inputs are $x$, $\hat y$,
+$\hat y^c$, and the query-scale neighbor tensors $X_c$, $Y_c$, $\hat Y_c$, and
+$E_c=Y_c-\hat Y_c$.  The frozen Chronos model is not part of TS-IFA training.
+
+The implementation uses a projected multi-head cross-attention block.  Each
+block linearly projects and layer-normalizes queries, keys, and values; applies
+multi-head attention; adds query and attention residuals followed by layer
+normalization; applies a four-times-wider feed-forward sublayer with another
+residual and normalization; and finally projects to the requested output size.
+The forward pass returns attention weights; evaluation artifacts omit them.
+
+Let $m=[x,\hat y]$ and $m_k=[x_k,\hat y_k]$.  The residual branch is
 \[
-y_m=\operatorname{MLP}([\hat y,Z_{m}]) \in \mathbb{R}^{1\times H}
+  z_r=\operatorname{CrossAttn}_r(m,\{m_k\},\{e_k\}),\qquad
+  y_r=\hat y+\operatorname{MLP}_r(z_r).
 \]
-
-\textbf{Final mixture}
-
-A final attention layer outputs final mixture.
-\[z_x = \operatorname{MLP}(m) \in \mathbb{R}^{d}\]
-\[\tilde{Y}= [\hat{y}, \hat{y}^c, y_r, y_m]\in \mathbb{R}^{4\times H}\]
-\[Z_y = \operatorname{MLP}(\tilde{Y}) \in \mathbb{R}^{4\times d} \]
-\[\hat{y}_{adapt} = \operatorname{Attn}(z_x, Z_y, \tilde{Y}) \in \mathbb{R}^{1\times H}\]
-
-\begin{figure}[!h]
-    \centering
-    \includegraphics[width=0.7\linewidth]{pipeline.png}
-
-
-    \caption{Illustration of the proposed pipeline.}
-    \label{fig:placeholder}
-\end{figure}
-
-\textbf{Parameter count}
-
-The residual and memory attention branches respectively contain
+It learns which historical forecast errors are relevant to the query.  The
+memory branch is
 \[
-P_r^{\mathrm{attn}}
-=
-h_r\left[2(L+H)d_r+2H^2\right], \qquad
-P_m^{\mathrm{attn}}
-=
-h_m\left[2Ld_m+2H^2\right].
+  z_m=\operatorname{CrossAttn}_m(x,\{x_k\},\{y_k\}),\qquad
+  y_m=\operatorname{MLP}_m([\hat y,z_m]).
 \]
+It learns directly from realized neighbor horizons.
 
-With hidden widths $s_r,s_m$, their prediction heads contain
+The four candidate forecasts are
 \[
-P_r^{\mathrm{head}}=Hs_r+s_r+s_rH+H,
-\qquad
-P_m^{\mathrm{head}}=Hs_y+s_y+s_yH+H.
+  \widetilde Y=[\hat y,\hat y^c,y_r,y_m]\in\mathbb{R}^{4\times H}.
 \]
-
-The final mixture contains
+The query and each candidate are embedded independently,
 \[
-P_{\mathrm{mix}}
-= [(L+H)s_x+s_x+s_xd+d] + [4Hs_y+s_y+4ds_y+4d]+[2dd_f+4H^2].
+  z_x=\operatorname{MLP}_x([x,\hat y]),\qquad
+  z_{y,j}=\operatorname{MLP}_y(\widetilde Y_j),
 \]
-Hence, the total number of trainable parameters is
+and a third cross-attention block produces a learned adaptation proposal,
 \[
-\boxed{O\big((h_rd_r+h_md_m)L+(h_r+h_m)H^2+s_xL+(s_x+s_y)H+(s_x+s_y+d_f)d+H^2\big)
-}.
+  \tilde y_{\mathrm{mix}}
+  =\operatorname{CrossAttn}_{\mathrm{mix}}(z_x,\{z_{y,j}\}_{j=1}^{4},\widetilde Y).
 \]
-
-% Let $d_r,d_m$ be the attention dimensions and $h_r,h_m$ the number of heads for the residual and memory branches. The attention parameters scale as
-% \[
-% O\left(
-% h_r(2(L+H)d_r+Hd_r)
-% +
-% h_m(2Ld_m+Hd_m)
-% \right).
-% \]
-% The heads $g_r,g_m$ map horizon-sized representations back to $\mathbb{R}^H$, while $g_{\operatorname{mix}}$ is chosen much smaller since it only combines four candidate forecasts.
-
-
-
-\section{Training}
-
-For each training window $x$, we:
-\begin{itemize}
-    \item compute the vanilla prediction $\hat y=f(x)$;
-    \item retrieve $K$ neighbors $\mathcal{N}(x)=\{(x_k,y_k)\}_{k=1}^K$;
-    \item compute the conditioned prediction $\hat y^c=f(x,\mathcal{N}(x))$;
-    \item compute examples' predictions $\hat Y_c=(f(x_k))_{k=1}^K$;
-    \item build residuals $R_c=Y_c-\hat Y_c$;
-    \item train the adapter (one step update) to predict $y$ from $\hat{y}_{adapt}=f(x,\hat y,\hat y^c,X_c,Y_c,\hat Y_c,R_c)$.
-\end{itemize}
-
-The main loss is
+This proposal is wrapped in an explicit identity-preserving residual gate.  A
+horizon-wise gate is computed from the query, the vanilla forecast, and the
+mixture proposal:
 \[
-\mathcal{L}_{pred}
-=
-\|y-\hat y_{\operatorname{adapt}}\|_2^2.
+  \alpha
+  =\sigma\!\left(\operatorname{MLP}_{\alpha}([x,\hat y,\tilde y_{\mathrm{mix}}])\right)
+  \in (0,1)^H,
 \]
-
-To keep the adapter conservative, we regularize deviations from the vanilla prediction:
+and the final prediction is
 \[
-\mathcal{L}_{reg}
-=
-\|\hat y_{\operatorname{adapt}}-\hat y\|_2^2.
+  \hat y_{\mathrm{TS\mbox{-}IFA}}
+  =\hat y+\alpha\odot(\tilde y_{\mathrm{mix}}-\hat y).
 \]
+Thus $\alpha=0$ gives the exact vanilla forecast, while $\alpha=1$ gives the
+full learned mixture proposal.  The gate MLP is initialized with zero final
+weights and bias $-6$, so the initial gate value is
+$\sigma(-6)\simeq 2.5\times 10^{-3}$ and training starts very close to the
+identity map.
 
-Optionally, we add residual supervision:
+All three attention blocks default to four heads with per-head dimension 32.
+The residual, memory, mixture, and final gate MLP hidden widths are 128, the
+mixture key dimension is 64, the default mixture gate bias is $-6$, and dropout
+is zero.  The implementation records exact total and trainable parameter counts
+in both the checkpoint and
+\method{config.json}; this is preferable to a simplified count that omits the
+projection, normalization, and feed-forward parameters inside each attention
+block.
+
+\section{TS-IFA preprocessing and training}
+
+After the neighbor-to-query scale transfer, TS-IFA can apply a second instance
+normalization using the query statistics.  Query values, forecasts, and
+neighbor values receive both location and scale normalization; neighbor
+residuals receive scale normalization only.
+
+The optimized loss is
 \[
-\mathcal{L}_{r}
-=
-\|(y-\hat y)-g_r(Z_r)\|_2^2,
+  \mathcal L
+  =\underbrace{\operatorname{MSE}(\hat y_{\mathrm{TS\mbox{-}IFA}},y)}_{\mathcal L_{\mathrm{pred}}}
+  +\beta\underbrace{\operatorname{MSE}(\hat y_{\mathrm{TS\mbox{-}IFA}},\hat y)}_{\mathcal L_{\mathrm{reg}}}
+  +\gamma\underbrace{\operatorname{MSE}(\delta_r,y-\hat y)}_{\mathcal L_r},
 \]
-then the full loss is
-\[
-\mathcal{L}
-=
-\mathcal{L}_{pred}
-+
-\beta \mathcal{L}_{reg}
-+
-\gamma \mathcal{L}_{r}.
-\]
+where $\delta_r=\operatorname{MLP}_r(z_r)$.  With instance normalization these
+are normalized MSE terms.  Without it, each error is divided by the query
+lookback standard deviation before averaging.
 
-\section*{Other RAG-based models}
+\section{Experimental protocol and retrieval implementation}
 
-- Convex mixture of $\hat{y}$ and $\sum w_k y_k$\\
-\textbf{kNN-MT} (ICLR 2021), (pFL through \textbf{Local Memorization}, ICML 2022, 175 cit.)
+This section gives the current experimental choices.  It is intentionally
+separated from the mathematical description above: the formulas define the
+adapters, while the details below define the present cluster runs.
 
-- Concatenate $X$ to $x$ and fine-tune\\
-(\textbf{RAF} AISTAT 2026, 34 cit.), (\textbf{In-context fine-tuning}, ICML 2025, 30 cit.)
+\subsection{Chronological protocol}
 
-- Fuse $\phi_x$ and $\Phi_X$ in a latent space, to feed to the pretrained decoder\\
-(\textbf{TimeRAF}, 2024, 31 cit.), (\textbf{RAFT}, ICML 2025 33 cit.), (\textbf{TS-RAG}, Neurips 2025, 45 cit.)\\
-(\textbf{Cross-RAG}, ICML 2026, 2 cit.)
+Every dataset is split chronologically with ratios $(0.30,0.35,0.15,0.20)$:
 
-I have not found 
-
-\section*{Other residual learning models}
-
-\textbf{Enhancing Transformer-Based Foundation Models} (2025, 2 cit.) mentions residual learning via another model.
-
-\textbf{Causality-Inspired Residual Correction} (2026, 1 cit.): want to avoid overfitting random noise ("safe learning"), causal encoder + mixture of linear and non linear residuals with validation gating (and proofs of guarantees).
-
-\textbf{Universal Error Corrector with Seasonal–Trend Decomposition} (2026) learn a trend and seasonal residual
-
-\textbf{Context-aware output-space adapter} (ICLR 2026, 2 cit.) linear residual function of input and past statistics.
-
-\begin{table*}[t]
-\centering
-\small
-\begin{tabular}{llllllll}
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}c l X@{}}
 \toprule
-\textbf{Model} & \textbf{Authors} & \textbf{Fusing} & \textbf{Weights} & \textbf{Residuals} & \textbf{Covariates} & \textbf{Forwards} & \textbf{Params} \\
+Period & Role & Consumers \\
 \midrule
-Horizon mix & -- & Output & Fixed+learned & $\times$ & $\times$ & 1 & 1 \\
-Learned mix & -- & Output & Learned & $\times$ & $\times$ & 1 & $K+1$ \\
-Full mix & -- & Output & Learned & $\times$ & \checkmark & 2 & $(K+2)H$ \\
-Scalar gate & -- & Output & Decision & $\times$ & \checkmark & $2+K$ & $P_{\sigma}$ \\
-Horizon gate & -- & Output & Decision & $\times$ & \checkmark & $2+K$ & $HP_{\sigma}$ \\
-\midrule
-TimeRAG   & Yang et al. 2024  & Input  & -- &$\times$ & $\times$ & 1 & -- \\
-ICFT & Das et al. 2024 & Input & -- & $\times$ & $\times$ & 1 & -- \\
-% RATD      & Liu et al. 2024   & Latent &  & --       & $T{+}1$ &  \\
-TimeRAF   & Zhang et al. 2024 & Input & -- & $\times$  & $\times$ & 1 & -- \\
-RAFT & Han et al. 2025 & Output & Fixed & $\times$ & $\times$ & 1 & -- \\
-TS-RAG    & Ning et al. 2025  & Latent & Self-Attn & $\times$ & $\times$ & 1 & -- \\
-Cross-RAG & Lee et al. 2026   & Latent & Cross-Attn & $\times$ & $\times$ & 1 & -- \\
-RAF & Tire et al. 2026 & Input & -- & $\times$ & $\times$ & 1 & -- \\
-ARARM & Ours & Output & Cross-Attn & \checkmark & \checkmark & $2+K$ & $P_r+P_m+P_{\mathrm{mix}}$ \\
+$T_0$ & Initial datastore & Fixed-retrieval reference and online-capacity reference \\
+$T_1$ & Baseline training & Learned mixtures; first part of TS-IFA training \\
+$T_2$ & Gate training & Learned context gates; second part of TS-IFA training \\
+$T_3$ & Final evaluation & Direct Chronos, held-out baselines, gates, oracles, and TS-IFA \\
 \bottomrule
-\end{tabular}
-\caption{Concise comparison of retrieval-augmented time-series forecasting models.}
-\label{tab:rag_tsf_models}
-\end{table*}
+\end{tabularx}
+\end{center}
 
-Here $P_{\sigma}$ denotes the parameter count of one binary gate. The gate
-forward count includes the vanilla prediction, the context-conditioned
-prediction, and the $K$ neighbor predictions used by residual-based gate
-features. A gate restricted to $x$, $X_c$, $Y_c$, $\hat y$, and $\hat y^c$
-would require only two pretrained-model forwards.
+The saved payload names are \method{train}, \method{oracle}, and
+\method{eval}, corresponding to $T_1$, $T_2$, and $T_3$.  The name
+\method{oracle} is historical: this payload is the training data for the
+learned gates.  Only the explicitly named target-aware methods in
+Section~\ref{sec:gates} are oracles.
+
+Mixtures are fitted only on $T_1$.  Gates are fitted only on $T_2$.  TS-IFA is
+trained on the concatenation $T_1\cup T_2$, without a validation split or early
+stopping.  All reported final metrics are evaluated on untouched $T_3$ data,
+except for the clearly suffixed \method{\_eval\_fit} diagnostic bounds.  The
+\method{\_eval\_fit} mixture results are fitted directly on $T_3$ targets and
+are optimistic in-sample bounds, not held-out forecasting methods; they are
+excluded from the main table and from best-value bolding.
+
+Temporal sampling is split into four explicit stride controls.  The datastore
+stride controls the phase-aligned retrieval history; when period alignment is
+enabled it must be a multiple of the alignment period, otherwise later
+datastore dates would drift away from the query phase.  The $T_1$, $T_2$, and
+$T_3$ query payloads are controlled separately by the train, oracle, and eval
+strides, respectively.
+
+\subsection{Retrieval implementation}
+
+Candidate windows are aligned to the query phase (period 24 by default), and a
+candidate is eligible only when its complete lookback and horizon precede the
+query lookback.  Windows from every target series are pooled in the datastore,
+so a neighbor may come from the query series or another series.
+
+Exact $K$-nearest-neighbor search is implemented in raw lookback space,
+instance-normalized lookback space, and encoder space.  Encoder features can
+optionally be pooled.  Euclidean, cosine, and Pearson distances are available.
+Search is exact, with query chunking used only to bound memory.
+
+The current cluster experiments use Chronos-2, ten neighbors, exact Euclidean
+nearest-neighbor search on independently instance-normalized time-domain
+lookbacks, and online retrieval:
+\[
+  K=10,\qquad d_k=\lVert\psi(x)-\psi(x_k)\rVert_2,
+  \qquad \psi=\text{instance-normalized lookback}.
+\]
+Nearest-neighbor search in the Chronos encoder space is therefore
+\emph{not} the default.  Raw-lookback and encoder-space retrieval remain
+implemented as ablations.
+
+In the default \method{online} mode, each query uses its most recent eligible
+history.  The number of aligned dates is capped by the corresponding $T_0$
+capacity unless \method{--full-online-history} is set; the current jobs also cap
+the store at 30,000 windows.  Consequently, later queries may use observations
+from $T_1$ or $T_2$ when these observations are already strictly in their past.
+In the \method{fixed} ablation, every $T_1$, $T_2$, and $T_3$ query retrieves
+only from $T_0$.  Date and window caps, explicit history bounds, the minimum
+store size, and period alignment are independently configurable.
+
+\subsection{Current TS-IFA training run}
+
+The current cluster job trains for 200 epochs on $T_1\cup T_2$ with AdamW,
+batch size 256, learning rate $10^{-3}$, weight decay $10^{-4}$, gradient-norm
+clipping at 1, $\beta=10^{-2}$, and $\gamma=0$.  Hence residual-branch
+supervision is implemented but disabled in the current experiment.  There is
+no validation evaluation during training; $T_3$ is evaluated once after the
+final epoch.
+
+\section{Current experiment configuration}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+Component & Current cluster value \\
+\midrule
+Datasets & Electricity; Solar aggregated by hourly sum \\
+Window settings & $(168,24)$ and $(672,168)$ \\
+Backbone & Chronos-2, frozen, local weights, future neighbor context enabled \\
+Splits & $T_0/T_1/T_2/T_3=0.30/0.35/0.15/0.20$ \\
+Retrieval & online, phase period 24, exact Euclidean in instance-normalized lookback space \\
+Neighbors and capacity & $K=10$, at most 30,000 datastore windows \\
+Sampling & datastore stride 24; $T_1$ query stride 24; $T_2$ query stride 24; $T_3$ query stride 128 \\
+Baseline ridge & $\ell_2=10^{-3}$; mixtures fitted on $T_1$ \\
+Gates & CatBoost, 300 iterations, learning rate 0.03, depth 4; fitted on $T_2$ \\
+TS-IFA & 200 epochs, batch 256, AdamW, learning rate $10^{-3}$, weight decay $10^{-4}$; final gate initialized near identity \\
+TS-IFA loss & instance normalization, $\beta=10^{-2}$, $\gamma=0$ \\
+Seed & 1 \\
+Final evaluation & $T_3$ only, using nMSE in generated result tables \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Code organization and experiment entry points}
+
+The repository is organized as follows:
+\begin{itemize}
+  \item \path{ts_ifa/data/load_dataset_model.py}: CSV loading, chronological
+  split bounds, model construction, device handling, and run directories.
+  \item \path{ts_ifa/data/neighbors.py}: aligned datastore dates, raw/instance/
+  encoder representations, and chunked exact nearest-neighbor search.
+  \item \path{ts_ifa/data/scaling.py}: neighbor-to-query scale transfer used by
+  baselines and TS-IFA.
+  \item \path{ts_ifa/models/chronos_model.py}: frozen Chronos-2 wrapper,
+  optional past/future context channels, and optional encoder representations.
+  \item \path{ts_ifa/models/ts_ifa.py}: attention block, \method{TSIFAConfig},
+  residual and memory branches, final mixture proposal, and identity-initialized
+  residual gate.
+  \item \path{ts_ifa/experiments/experiment_univariate.py}: direct backbone
+  evaluation without retrieval.
+  \item \path{ts_ifa/experiments/extraction.py}: the expensive shared stage;
+  it retrieves neighbors and writes $T_1/T_2/T_3$ prediction and feature payloads.
+  \item \path{ts_ifa/experiments/evaluate_baselines.py}: scale transfer,
+  non-trainable baselines, ridge mixtures, CatBoost gates, and true context oracles.
+  \item \path{ts_ifa/experiments/train_ts_ifa.py}: payload dataset, optional
+  instance normalization, TS-IFA optimization, final evaluation, and artifacts.
+  \item \path{ts_ifa/results_table.py}: aggregation of direct, baseline, gate,
+  and TS-IFA metrics into LaTeX tables.
+  \item \path{ts_ifa/visu/retrieval_dashboard.ipynb}: artifact-only inspection
+  of examples, errors, gate scores, and decisions; it does not retrain models.
+\end{itemize}
+
+The cluster workflow is deliberately staged.  First, the
+\path{extract_payloads.slurm} launcher under \path{ts_ifa/slurm/extraction/}
+evaluates direct Chronos forecasts and creates the shared retrieval payloads.  Once it succeeds, the
+baseline, gate, and TS-IFA jobs can run concurrently from
+\path{ts_ifa/slurm/baselines/}, \path{ts_ifa/slurm/gates/}, and
+\path{ts_ifa/slurm/training/}.  Finally,
+the \path{build_results_table.slurm} launcher under
+\path{ts_ifa/slurm/results/} creates the main,
+baseline, gate, and TS-IFA tables.  Downstream stages read the same extraction
+directory but write to separate subdirectories, so their artifacts do not
+overwrite one another.
+
+\subsection{Important configuration and ablation switches}
+
+The literal configuration blocks at the top of the SLURM scripts are the
+source of truth for cluster experiments.  The most important ablation axes are:
+
+\begin{itemize}
+  \item \textbf{Retrieval space:} \path{DISTANCE_SPACES} and
+  \path{--distance-space} select \method{instance} (default), \method{raw}, or
+  \method{encoder}; \path{--pool-representation} enables encoder pooling.
+  \item \textbf{Distance metric:} \path{--distance-metric} selects
+  \method{euclidean} (current), \method{cosine}, or \method{pearson}.
+  \item \textbf{Neighbor count:} \path{NEIGHBORS} and \path{--neighbors}
+  control payload shape and therefore require a new extraction run.
+  \item \textbf{History policy and capacity:} \path{RETRIEVAL_MODE} and
+  \path{--retrieval-mode} select \method{online} (current) or fixed-$T_0$
+  \method{fixed}.  Date/window caps use \path{--max-store-dates} and
+  \path{--max-store-windows}; \path{--full-online-history} removes the implicit
+  $T_0$ date cap.
+  \item \textbf{Temporal sampling:} \path{--period} controls phase alignment;
+  \path{--datastore-stride} controls aligned retrieval history density;
+  \path{--train-stride}, \path{--oracle-stride}, and \path{--eval-stride}
+  control $T_1$, $T_2$, and $T_3$ query density.
+  \item \textbf{Context residuals:} \path{--compute-ec} adds
+  neighbor-context residuals to the payload.  It is disabled because current
+  baselines and TS-IFA use univariate neighbor residuals $e_k$.
+  \item \textbf{Gate capacity:} \path{GATE_ITERATIONS},
+  \path{GATE_LEARNING_RATE}, and \path{GATE_DEPTH} control CatBoost iterations,
+  learning rate, and depth.
+  \item \textbf{TS-IFA architecture:} the training CLI exposes
+  \path{--residual-heads}, \path{--memory-heads}, \path{--mixture-heads}, three
+  attention-dimension options, hidden widths, mixture key dimension,
+  \path{--mixture-gate-init}, and dropout.
+  \item \textbf{TS-IFA objective:} \path{BETA}, \path{GAMMA}, and
+  \path{--normalization} control conservativeness, explicit residual
+  supervision, and instance-normalization ablations.
+\end{itemize}
+
+Retrieval-space, metric, neighbor-count, history-policy, capacity, or sampling
+changes alter the payload and must be made in the extraction stage first.  The
+same run name and settings must then be used by every downstream job.  Gate-only
+and TS-IFA-only hyperparameters consume existing payloads and can be varied
+without rerunning Chronos.
+
+\section{Artifacts and checks}
+
+Extraction writes one \path{*_prediction_payload.pt} file per extracted split,
+plus feature payloads and a retrieval example.  Baselines and gates
+write JSON/CSV metrics, fitted artifacts, and compact visualization payloads.
+TS-IFA writes the checkpoint, configuration, training history, final metrics,
+evaluation predictions, and training curve under its run subdirectory.
+
+The lightweight local checks most relevant to this document are
+\path{tests/smoke/check_baseline_oracles.py} and
+\path{tests/smoke/check_ts_ifa_training.py}.  Full extraction and training are
+cluster workloads and should not be run locally.
 
 \end{document}

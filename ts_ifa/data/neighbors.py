@@ -96,11 +96,12 @@ def aligned_store_dates(
     *,
     lags: int,
     horizon: int,
-    train_stride: int,
     n_users: int,
     period: int,
     store_start: int,
     store_end: int,
+    datastore_stride: int | None = None,
+    train_stride: int | None = None,
     online: bool = True,
     align_period: bool = True,
     min_store_dates: int = 0,
@@ -114,6 +115,16 @@ def aligned_store_dates(
     In fixed mode the store is ``[store_start, store_end)``. In online mode it
     uses all complete history ending before the query window.
     """
+    if datastore_stride is None:
+        if train_stride is None:
+            raise ValueError("pass datastore_stride")
+        datastore_stride = train_stride
+    datastore_stride = int(datastore_stride)
+    if datastore_stride <= 0:
+        raise ValueError("datastore_stride must be positive")
+    if align_period and int(period) > 0 and datastore_stride % int(period) != 0:
+        raise ValueError("datastore_stride must be a multiple of period when align_period=True")
+
     if online:
         last_valid_store = int(query_t) - (int(lags) + int(horizon))
         if last_valid_store < 0:
@@ -141,7 +152,7 @@ def aligned_store_dates(
         if last < first:
             return np.array([], dtype=np.int64)
 
-    dates = np.arange(first, last + 1, int(train_stride), dtype=np.int64)
+    dates = np.arange(first, last + 1, datastore_stride, dtype=np.int64)
     if len(dates) < int(min_store_dates):
         return np.array([], dtype=np.int64)
     return _trim_dates(

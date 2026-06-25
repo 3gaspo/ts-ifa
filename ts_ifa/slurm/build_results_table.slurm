@@ -28,45 +28,45 @@ echo "$(date -Is) job start kind=results_tables"
 srun python -m ts_ifa.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/results.tex" \
-  --metric mse \
+  --metric nmse \
   --split eval \
   "${DATASET_ARGS[@]}" \
   --methods "$MAIN_METHODS" \
   --reference chronos \
-  --caption "Main forecasting results" \
+  --caption "Main nMSE forecasting results" \
   --label tab:results
 
 srun python -m ts_ifa.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/baselines_results.tex" \
-  --metric mse \
+  --metric nmse \
   --split eval \
   "${DATASET_ARGS[@]}" \
   --methods "$BASELINE_METHODS" \
   --reference chronos \
   --exclude-from-bold mix_0_weighted_eval_fit,mix_1_learned_eval_fit,mix_2_full_horizon_eval_fit \
-  --caption "Baseline forecasting results and optimistic T3-fitted bounds" \
+  --caption "Baseline nMSE results and optimistic T3-fitted bounds" \
   --label tab:baselines-results
 
 srun python -m ts_ifa.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/gates_results.tex" \
-  --metric mse \
+  --metric nmse \
   --split eval \
   "${DATASET_ARGS[@]}" \
   --methods "$GATE_METHODS" \
   --reference chronos \
-  --caption "Gate forecasting results and ground-truth-informed oracles" \
+  --caption "Gate nMSE results and ground-truth-informed oracles" \
   --label tab:gates-results
 
 srun python -m ts_ifa.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/ts_ifa_results.tex" \
-  --metric mse \
+  --metric nmse \
   --split eval \
   "${DATASET_ARGS[@]}" \
   --methods "$TS_IFA_METHODS" \
   --reference chronos \
-  --caption "TS-IFA forecasting results" \
+  --caption "TS-IFA nMSE forecasting results" \
   --label tab:ts-ifa-results
 echo "$(date -Is) job done kind=results_tables output=$OUT_ROOT"

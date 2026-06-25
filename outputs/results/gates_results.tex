@@ -1,24 +1,24 @@
 \begin{table}[htbp]
 \centering
-\caption{Gate forecasting results and ground-truth-informed oracles}
+\caption{Gate nMSE results and ground-truth-informed oracles}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llcrrrrrr|rr}
 \toprule
 Dataset & $L$--$H$ & Scale & chronos & IN\_L2\_10/context & IN\_L2\_10/gate-cls-s & IN\_L2\_10/gate-cls-h & IN\_L2\_10/gate-reg-s & IN\_L2\_10/gate-reg-h & IN\_L2\_10/oracle-s & IN\_L2\_10/oracle-h \\
 \midrule
-\multirow{2}{*}{electricity} & 168--24 & $\times 10^{6}$ & \textbf{1.87} & 1.96 & 1.96 & 1.94 & 1.93 & 1.94 & 1.72 & 1.63 \\
- & 672--168 & $\times 10^{6}$ & \textbf{4.87} & 6.12 & 5.44 & 5.21 & 4.93 & 5.54 & 4.25 & 3.88 \\
- & \textit{Improvement} &  & \textbf{0.00\%} & -19.90\% & -9.70\% & -6.21\% & -1.75\% & -11.01\% & 11.47\% & 18.25\% \\
+\multirow{2}{*}{electricity} & 168--24 & $\times 10^{-1}$ & 1.74 & 1.62 & \textbf{1.61} & 1.62 & 1.64 & 1.67 & 1.40 & 1.26 \\
+ & 672--168 & $\times 10^{-1}$ & \textbf{2.30} & 2.47 & 2.39 & 2.36 & 2.43 & 2.38 & 2.11 & 1.91 \\
+ & \textit{Improvement} &  & 0.00\% & -1.44\% & 1.13\% & \textbf{1.50\%} & -0.82\% & -0.40\% & 12.99\% & 21.66\% \\
 \midrule
-\multirow{2}{*}{solar} & 168--24 & $\times 10^{2}$ & 8.16 & 8.62 & 8.44 & 8.18 & \textbf{8.05} & 8.18 & 7.57 & 7.49 \\
- & 672--168 & $\times 10^{2}$ & 6.75 & \textbf{6.18} & 6.63 & 6.46 & 6.72 & 6.50 & 5.91 & 5.35 \\
- & \textit{Improvement} &  & 0.00\% & 0.68\% & -1.12\% & \textbf{1.82\%} & 0.93\% & 1.51\% & 9.60\% & 13.89\% \\
+\multirow{2}{*}{solar} & 168--24 & $\times 10^{-1}$ & 3.21 & 3.37 & 3.35 & 3.22 & \textbf{3.17} & 3.21 & 2.95 & 2.91 \\
+ & 672--168 & $\times 10^{-1}$ & 2.42 & \textbf{2.22} & 2.38 & 2.31 & 2.41 & 2.33 & 2.11 & 1.89 \\
+ & \textit{Improvement} &  & 0.00\% & 0.87\% & -1.63\% & \textbf{1.85\%} & 1.07\% & 1.70\% & 10.19\% & 14.68\% \\
 \midrule
 \multicolumn{11}{l}{\textit{Improvements by setting}} \\
- & 168--24 &  & \textbf{0.00\%} & -5.05\% & -4.71\% & -4.16\% & -3.48\% & -4.04\% & 8.05\% & 12.81\% \\
- & 672--168 &  & \textbf{0.00\%} & -25.59\% & -11.61\% & -7.00\% & -1.09\% & -13.68\% & 12.78\% & 20.33\% \\
+ & 168--24 &  & 0.00\% & -0.65\% & 0.03\% & 2.32\% & \textbf{2.96\%} & 1.40\% & 12.21\% & 15.84\% \\
+ & 672--168 &  & 0.00\% & 0.50\% & -1.01\% & \textbf{1.05\%} & -2.54\% & 0.23\% & 10.46\% & 19.44\% \\
 \midrule
-\multicolumn{2}{l}{Overall improvement} &  & \textbf{0.00\%} & -19.90\% & -9.70\% & -6.21\% & -1.75\% & -11.01\% & 11.47\% & 18.25\% \\
+\multicolumn{2}{l}{Overall improvement} &  & 0.00\% & -0.09\% & -0.48\% & \textbf{1.70\%} & 0.28\% & 0.83\% & 11.36\% & 17.59\% \\
 \bottomrule
 \end{tabular}%
 }

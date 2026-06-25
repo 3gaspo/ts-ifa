@@ -24,8 +24,10 @@ NEIGHBORS=(10)
 
 SPLITS="0.3,0.35,0.15,0.2"
 RETRIEVAL_MODE="online"
-TRAIN_STRIDE=24
-EVAL_STRIDE=128
+DATASTORE_STRIDE=24
+TRAIN_QUERY_STRIDE=24
+ORACLE_QUERY_STRIDE=24
+EVAL_QUERY_STRIDE=128
 PERIOD=24
 MAX_STORE_WINDOWS=30000
 SEED=1
@@ -54,7 +56,7 @@ for dataset in "${DATASETS[@]}"; do
         --lags "$L" \
         --horizon "$H" \
         --splits "$SPLITS" \
-        --eval-stride "$EVAL_STRIDE" \
+        --eval-stride "$EVAL_QUERY_STRIDE" \
         --model "$model" \
         --normalization instance \
         --device gpu \
@@ -78,8 +80,10 @@ for dataset in "${DATASETS[@]}"; do
           --lags "$L" \
           --horizon "$H" \
           --splits "$SPLITS" \
-          --train-stride "$TRAIN_STRIDE" \
-          --eval-stride "$EVAL_STRIDE" \
+          --datastore-stride "$DATASTORE_STRIDE" \
+          --train-stride "$TRAIN_QUERY_STRIDE" \
+          --oracle-stride "$ORACLE_QUERY_STRIDE" \
+          --eval-stride "$EVAL_QUERY_STRIDE" \
           --period "$PERIOD" \
           --neighbors "$neighbors" \
           --distance-space "$space" \

@@ -100,6 +100,7 @@ class TSIFAConfig:
     memory_hidden: int = 128
     mixture_hidden: int = 128
     mixture_key_dim: int = 64
+    mixture_gate_init: float = -6.0
     dropout: float = 0.0
 
 
@@ -168,6 +169,15 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             attn_dim=config.mixture_attn_dim,
             dropout=config.dropout,
         )
+        self.mixture_gate = mlp(
+            lags + 2 * horizon,
+            config.mixture_hidden,
+            horizon,
+            dropout=config.dropout,
+        )
+        gate_output = self.mixture_gate[-1]
+        nn.init.zeros_(gate_output.weight)
+        nn.init.constant_(gate_output.bias, float(config.mixture_gate_init))
 
     def forward(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = batch["x"]
@@ -202,12 +212,17 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             "(batch candidate) dim -> batch candidate dim",
             candidate=4,
         )
-        prediction, mixture_weights = self.mixture_attention(z_x, z_y, candidates)
+        mixture_candidate, mixture_weights = self.mixture_attention(z_x, z_y, candidates)
+        gate_input, _ = pack([x, pred, mixture_candidate], "batch *")
+        mixture_gate = torch.sigmoid(self.mixture_gate(gate_input))
+        prediction = pred + mixture_gate * (mixture_candidate - pred)
 
         return {
             "prediction": prediction,
             "residual_prediction": y_r,
             "memory_prediction": y_m,
+            "mixture_candidate": mixture_candidate,
+            "mixture_gate": mixture_gate,
             "residual_delta": residual_delta,
             "residual_weights": residual_weights,
             "memory_weights": memory_weights,

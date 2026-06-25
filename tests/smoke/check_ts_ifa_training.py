@@ -20,6 +20,7 @@ from ts_ifa.experiments.train_ts_ifa import (  # noqa: E402
     main,
     prepare_batch,
 )
+from ts_ifa.models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter  # noqa: E402
 
 
 def make_payload(prefix: str) -> dict[str, torch.Tensor]:
@@ -84,8 +85,45 @@ def check_query_scale_transfer() -> None:
     torch.testing.assert_close(batch["residual_c"], torch.tensor([[[1.0]]]))
 
 
+def check_identity_initialized_mixture() -> None:
+    torch.manual_seed(1)
+    config = TSIFAConfig(
+        lags=6,
+        horizon=2,
+        neighbors=2,
+        residual_heads=2,
+        memory_heads=2,
+        mixture_heads=2,
+        residual_attn_dim=8,
+        memory_attn_dim=8,
+        mixture_attn_dim=8,
+        residual_hidden=16,
+        memory_hidden=16,
+        mixture_hidden=16,
+        mixture_key_dim=16,
+    )
+    model = TimeSeriesInformedForecastingAdapter(config)
+    batch = {
+        "x": torch.randn(4, 6),
+        "x_c": torch.randn(4, 2, 6),
+        "y_c": torch.randn(4, 2, 2),
+        "pred": torch.randn(4, 2),
+        "pred_context": torch.randn(4, 2),
+        "pred_neighbors": torch.randn(4, 2, 2),
+        "residual_c": torch.randn(4, 2, 2),
+    }
+    outputs = model(batch)
+    expected_gate = torch.full_like(outputs["mixture_gate"], torch.sigmoid(torch.tensor(config.mixture_gate_init)))
+    torch.testing.assert_close(outputs["mixture_gate"], expected_gate)
+    torch.testing.assert_close(
+        outputs["prediction"],
+        batch["pred"] + outputs["mixture_gate"] * (outputs["mixture_candidate"] - batch["pred"]),
+    )
+
+
 def run() -> None:
     check_query_scale_transfer()
+    check_identity_initialized_mixture()
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         train_path = base / "train_prediction_payload.pt"

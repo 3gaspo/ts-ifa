@@ -166,6 +166,22 @@ def main() -> None:
         max_store_dates=len(fixed_dates),
     )
     assert len(warmup_dates) == 0
+    try:
+        aligned_store_dates(
+            80,
+            lags=4,
+            horizon=2,
+            datastore_stride=5,
+            n_users=2,
+            period=2,
+            store_start=0,
+            store_end=30,
+            online=False,
+        )
+    except ValueError as exc:
+        assert "multiple of period" in str(exc)
+    else:
+        raise AssertionError("unaligned datastore stride should be rejected")
 
     if args.check_patchtst:
         patchtst = load_pretrained_model(

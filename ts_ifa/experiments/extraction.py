@@ -108,7 +108,7 @@ def store_dates_for_query(
     common = {
         "lags": args.lags,
         "horizon": args.horizon,
-        "train_stride": args.train_stride,
+        "datastore_stride": args.datastore_stride,
         "n_users": n_users,
         "period": args.period,
         "store_start": fixed_store_start,
@@ -502,8 +502,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lags", type=int, required=True)
     parser.add_argument("--horizon", type=int, required=True)
     parser.add_argument("--splits", default="0.3,0.35,0.15,0.2")
-    parser.add_argument("--train-stride", type=int, default=24)
-    parser.add_argument("--eval-stride", type=int, default=24)
+    parser.add_argument(
+        "--datastore-stride",
+        type=int,
+        default=None,
+        help="Stride for aligned retrieval datastore dates; defaults to --train-stride for compatibility",
+    )
+    parser.add_argument("--train-stride", type=int, default=24, help="T1 query stride for baseline and TS-IFA training")
+    parser.add_argument("--oracle-stride", type=int, default=None, help="T2 query stride for gate/oracle training")
+    parser.add_argument("--eval-stride", type=int, default=24, help="T3 query stride for final evaluation")
     parser.add_argument("--period", type=int, default=24)
     parser.add_argument("--neighbors", type=int, default=0)
     parser.add_argument(
@@ -609,6 +616,18 @@ def main() -> dict[str, Path]:
         and args.store_start_date >= args.store_end_date
     ):
         raise ValueError("--store-start-date must be before --store-end-date")
+    if args.oracle_stride is None:
+        args.oracle_stride = args.train_stride
+    if args.datastore_stride is None:
+        args.datastore_stride = args.train_stride
+    for name in ("datastore_stride", "train_stride", "oracle_stride", "eval_stride"):
+        if int(getattr(args, name)) <= 0:
+            raise ValueError(f"--{name.replace('_', '-')} must be positive")
+    if not args.no_align_period:
+        if int(args.period) <= 0:
+            raise ValueError("--period must be positive when aligned retrieval is enabled")
+        if int(args.datastore_stride) % int(args.period) != 0:
+            raise ValueError("--datastore-stride must be a multiple of --period when aligned retrieval is enabled")
 
     t0_end, t1_end, t2_end, t3_end = split_bounds(dataset.n_dates, args.splits)
     train_eval_dates = period_eval_dates(
@@ -617,7 +636,7 @@ def main() -> dict[str, Path]:
         n_dates=dataset.n_dates,
         lags=args.lags,
         horizon=args.horizon,
-        stride=args.eval_stride,
+        stride=args.train_stride,
     )
     oracle_eval_dates = period_eval_dates(
         t1_end,
@@ -625,7 +644,7 @@ def main() -> dict[str, Path]:
         n_dates=dataset.n_dates,
         lags=args.lags,
         horizon=args.horizon,
-        stride=args.eval_stride,
+        stride=args.oracle_stride,
     )
     eval_eval_dates = period_eval_dates(
         t2_end,
@@ -658,11 +677,15 @@ def main() -> dict[str, Path]:
     )
     if args.verbose:
         LOGGER.info(
-            "split bounds t0=%s t1=%s t2=%s t3=%s train_queries=%s oracle_queries=%s eval_queries=%s",
+            "split bounds t0=%s t1=%s t2=%s t3=%s datastore_stride=%s train_stride=%s oracle_stride=%s eval_stride=%s train_queries=%s oracle_queries=%s eval_queries=%s",
             t0_end,
             t1_end,
             t2_end,
             t3_end,
+            args.datastore_stride,
+            args.train_stride,
+            args.oracle_stride,
+            args.eval_stride,
             len(train_eval_dates),
             len(oracle_eval_dates),
             len(eval_eval_dates),
