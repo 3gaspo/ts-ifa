@@ -1,0 +1,33 @@
+{
+  "name": "TS-IFA",
+  "model": {
+    "lags": 168,
+    "horizon": 24,
+    "neighbors": 10,
+    "residual_heads": 4,
+    "memory_heads": 4,
+    "mixture_heads": 4,
+    "residual_attn_dim": 32,
+    "memory_attn_dim": 32,
+    "mixture_attn_dim": 32,
+    "residual_hidden": 128,
+    "memory_hidden": 128,
+    "mixture_hidden": 128,
+    "mixture_key_dim": 64,
+    "dropout": 0.0
+  },
+  "parameters": {
+    "total": 785400,
+    "trainable": 785400
+  },
+  "training": {
+    "optimizer": "AdamW",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "loss": "nMSE",
+    "normalization": "instance",
+    "beta": 0.01,
+    "gamma": 0.0,
+    "seconds": 38.976171653717756
+  }
+}

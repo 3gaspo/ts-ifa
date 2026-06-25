@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\centering
+\caption{Gate forecasting results and ground-truth-informed oracles}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcrrrrrr|rr}
+\toprule
+Dataset & $L$--$H$ & Scale & chronos & IN\_L2\_10/context & IN\_L2\_10/gate-cls-s & IN\_L2\_10/gate-cls-h & IN\_L2\_10/gate-reg-s & IN\_L2\_10/gate-reg-h & IN\_L2\_10/oracle-s & IN\_L2\_10/oracle-h \\
+\midrule
+\multirow{2}{*}{electricity} & 168--24 & $\times 10^{6}$ & \textbf{1.87} & 1.96 & 1.96 & 1.94 & 1.93 & 1.94 & 1.72 & 1.63 \\
+ & 672--168 & $\times 10^{6}$ & \textbf{4.87} & 6.12 & 5.44 & 5.21 & 4.93 & 5.54 & 4.25 & 3.88 \\
+ & \textit{Improvement} &  & \textbf{0.00\%} & -19.90\% & -9.70\% & -6.21\% & -1.75\% & -11.01\% & 11.47\% & 18.25\% \\
+\midrule
+\multirow{2}{*}{solar} & 168--24 & $\times 10^{2}$ & 8.16 & 8.62 & 8.44 & 8.18 & \textbf{8.05} & 8.18 & 7.57 & 7.49 \\
+ & 672--168 & $\times 10^{2}$ & 6.75 & \textbf{6.18} & 6.63 & 6.46 & 6.72 & 6.50 & 5.91 & 5.35 \\
+ & \textit{Improvement} &  & 0.00\% & 0.68\% & -1.12\% & \textbf{1.82\%} & 0.93\% & 1.51\% & 9.60\% & 13.89\% \\
+\midrule
+\multicolumn{11}{l}{\textit{Improvements by setting}} \\
+ & 168--24 &  & \textbf{0.00\%} & -5.05\% & -4.71\% & -4.16\% & -3.48\% & -4.04\% & 8.05\% & 12.81\% \\
+ & 672--168 &  & \textbf{0.00\%} & -25.59\% & -11.61\% & -7.00\% & -1.09\% & -13.68\% & 12.78\% & 20.33\% \\
+\midrule
+\multicolumn{2}{l}{Overall improvement} &  & \textbf{0.00\%} & -19.90\% & -9.70\% & -6.21\% & -1.75\% & -11.01\% & 11.47\% & 18.25\% \\
+\bottomrule
+\end{tabular}%
+}
+\label{tab:gates-results}
+\end{table}

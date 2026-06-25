@@ -1,0 +1,9 @@
+{
+  "adapted_nmse": 0.36279859334012887,
+  "vanilla_nmse": 0.2421666966737622,
+  "context_nmse": 0.22203299076887814,
+  "residual_branch_nmse": 0.8786424511540545,
+  "memory_branch_nmse": 1.342661217181352,
+  "adapted_mse": 1020.3394160583941,
+  "adapted_mae": 20.210512608755863
+}

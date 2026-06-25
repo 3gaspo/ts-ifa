@@ -1,0 +1,50 @@
+[
+  {
+    "split": "eval",
+    "baseline": "gated_context_classifier_scalar",
+    "mse": 844.4284057617188,
+    "mae": 12.441519737243652,
+    "nmse": 0.3347400426864624,
+    "relative_nmse_improvement_pct": -4.184836387634277
+  },
+  {
+    "split": "eval",
+    "baseline": "gated_context_classifier_horizon",
+    "mse": 817.666748046875,
+    "mae": 12.196659088134766,
+    "nmse": 0.3220009207725525,
+    "relative_nmse_improvement_pct": -0.21989914774894714
+  },
+  {
+    "split": "eval",
+    "baseline": "gated_context_regressor_scalar",
+    "mse": 804.9906616210938,
+    "mae": 12.193598747253418,
+    "nmse": 0.3169177770614624,
+    "relative_nmse_improvement_pct": 1.362183690071106
+  },
+  {
+    "split": "eval",
+    "baseline": "gated_context_regressor_horizon",
+    "mse": 818.0394897460938,
+    "mae": 12.270780563354492,
+    "nmse": 0.3210645616054535,
+    "relative_nmse_improvement_pct": 0.07153423875570297
+  },
+  {
+    "split": "eval",
+    "baseline": "oracle_context_scalar",
+    "mse": 756.590576171875,
+    "mae": 11.626646041870117,
+    "nmse": 0.29459357261657715,
+    "relative_nmse_improvement_pct": 8.310392379760742
+  },
+  {
+    "split": "eval",
+    "baseline": "oracle_context_horizon",
+    "mse": 748.961181640625,
+    "mae": 11.331526756286621,
+    "nmse": 0.2912819981575012,
+    "relative_nmse_improvement_pct": 9.341089248657227
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "split": "eval",
+    "baseline": "vanilla",
+    "mse": 674.8486328125,
+    "mae": 11.33740520477295,
+    "nmse": 0.24216671288013458,
+    "relative_nmse_improvement_pct": 0.0
+  },
+  {
+    "split": "eval",
+    "baseline": "context_conditioned",
+    "mse": 618.4669189453125,
+    "mae": 10.8737211227417,
+    "nmse": 0.22203297913074493,
+    "relative_nmse_improvement_pct": 8.313997268676758
+  },
+  {
+    "split": "eval",
+    "baseline": "neighbor_weighted_mean",
+    "mse": 939.7731292572884,
+    "mae": 16.650691094394407,
+    "nmse": 0.3433839944734368,
+    "relative_nmse_improvement_pct": -41.79652950213757
+  },
+  {
+    "split": "eval",
+    "baseline": "neighbor_unweighted_mean",
+    "mse": 852.8687744140625,
+    "mae": 16.135812759399414,
+    "nmse": 0.31204476952552795,
+    "relative_nmse_improvement_pct": -28.8553524017334
+  },
+  {
+    "split": "eval",
+    "baseline": "pred_plus_weighted_e",
+    "mse": 1026.5114253857857,
+    "mae": 14.61192768787816,
+    "nmse": 0.3720153908205984,
+    "relative_nmse_improvement_pct": -53.61954019037089
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_0_weighted",
+    "mse": 634.6784346501119,
+    "mae": 11.184526853893642,
+    "nmse": 0.22693440744975196,
+    "relative_nmse_improvement_pct": 6.290007924384787
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_1_learned",
+    "mse": 636.9574481228116,
+    "mae": 11.362130981159934,
+    "nmse": 0.22885459154310545,
+    "relative_nmse_improvement_pct": 5.497089661376478
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_2_full_horizon",
+    "mse": 653.9021606445312,
+    "mae": 11.834039688110352,
+    "nmse": 0.23574823141098022,
+    "relative_nmse_improvement_pct": 2.6504392623901367
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_0_weighted_eval_fit",
+    "mse": 622.9936312214991,
+    "mae": 11.721851408023744,
+    "nmse": 0.22253873220126247,
+    "relative_nmse_improvement_pct": 8.105152209167322
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_1_learned_eval_fit",
+    "mse": 607.4507382535955,
+    "mae": 11.895570957260109,
+    "nmse": 0.21775549334614197,
+    "relative_nmse_improvement_pct": 10.080336493676342
+  },
+  {
+    "split": "eval",
+    "baseline": "mix_2_full_horizon_eval_fit",
+    "mse": 380.5411376953125,
+    "mae": 9.340319633483887,
+    "nmse": 0.14342635869979858,
+    "relative_nmse_improvement_pct": 40.773712158203125
+  }
+]

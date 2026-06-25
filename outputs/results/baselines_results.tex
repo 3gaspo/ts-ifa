@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\centering
+\caption{Baseline forecasting results and optimistic T3-fitted bounds}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcrrrrrrrr|rrr}
+\toprule
+Dataset & $L$--$H$ & Scale & chronos & IN\_L2\_10/context & IN\_L2\_10/kNN-w & IN\_L2\_10/kNN & IN\_L2\_10/residual & IN\_L2\_10/mix0 & IN\_L2\_10/mix1 & IN\_L2\_10/mix2 & IN\_L2\_10/mix0-fit-T3 & IN\_L2\_10/mix1-fit-T3 & IN\_L2\_10/mix2-fit-T3 \\
+\midrule
+\multirow{2}{*}{electricity} & 168--24 & $\times 10^{6}$ & \textbf{1.87} & 1.96 & 4.16 & 3.73 & 2.39 & 1.87 & 2.09 & 2.36 & 1.86 & 1.75 & 1.18 \\
+ & 672--168 & $\times 10^{6}$ & \textbf{4.87} & 6.12 & 12.24 & 11.07 & 7.46 & 4.88 & 5.08 & 5.96 & 4.87 & 4.59 & 2.88 \\
+ & \textit{Improvement} &  & \textbf{0.00\%} & -19.90\% & -143.27\% & -119.47\% & -46.13\% & -0.06\% & -6.29\% & -23.41\% & 0.05\% & 6.07\% & 39.77\% \\
+\midrule
+\multirow{2}{*}{solar} & 168--24 & $\times 10^{2}$ & 8.16 & 8.62 & 10.77 & 10.43 & 9.40 & 7.99 & \textbf{7.78} & 8.14 & 7.97 & 6.90 & 5.39 \\
+ & 672--168 & $\times 10^{2}$ & 6.75 & \textbf{6.18} & 9.40 & 8.53 & 10.27 & 6.35 & 6.37 & 6.54 & 6.23 & 6.07 & 3.81 \\
+ & \textit{Improvement} &  & 0.00\% & 0.68\% & -35.31\% & -27.19\% & -31.92\% & 3.80\% & \textbf{5.06\%} & 1.52\% & 4.71\% & 12.94\% & 38.31\% \\
+\midrule
+\multicolumn{14}{l}{\textit{Improvements by setting}} \\
+ & 168--24 &  & 0.00\% & -5.05\% & -122.89\% & -99.63\% & -27.98\% & \textbf{0.00\%} & -11.90\% & -26.20\% & 0.17\% & 6.49\% & 36.81\% \\
+ & 672--168 &  & \textbf{0.00\%} & -25.59\% & -151.05\% & -127.05\% & -53.08\% & -0.08\% & -4.14\% & -22.33\% & 0.00\% & 5.91\% & 40.90\% \\
+\midrule
+\multicolumn{2}{l}{Overall improvement} &  & \textbf{0.00\%} & -19.90\% & -143.25\% & -119.45\% & -46.13\% & -0.06\% & -6.29\% & -23.40\% & 0.05\% & 6.07\% & 39.77\% \\
+\bottomrule
+\end{tabular}%
+}
+\label{tab:baselines-results}
+\end{table}
