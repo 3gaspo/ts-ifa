@@ -1,4 +1,4 @@
-"""CSV dataset and pretrained-model loading for retrieval-augmented experiments."""
+"""CSV dataset loading and shared experiment helpers."""
 
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-from ..models.models import load_model
-
 
 def set_seed(seed: int | None) -> None:
     if seed is None:
@@ -24,19 +22,6 @@ def set_seed(seed: int | None) -> None:
     torch.manual_seed(int(seed))
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(int(seed))
-
-
-def resolve_device(device: str | torch.device | None = "auto") -> torch.device:
-    if isinstance(device, torch.device):
-        return device
-    name = "auto" if device is None else str(device).lower()
-    if name in {"auto", "gpu", "cuda"}:
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        if name in {"gpu", "cuda"}:
-            raise RuntimeError("CUDA was requested but is not available")
-        return torch.device("cpu")
-    return torch.device(name)
 
 
 def _split_text(value: str) -> list[str]:
@@ -53,17 +38,8 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
-def _select_columns(df: pd.DataFrame, columns: Sequence[Any] | str | None) -> list[str]:
-    selected = []
-    for item in _as_list(columns):
-        if isinstance(item, int) or (isinstance(item, str) and item.lstrip("-").isdigit()):
-            selected.append(str(df.columns[int(item)]))
-        else:
-            selected.append(str(item))
-    missing = [col for col in selected if col not in df.columns]
-    if missing:
-        raise KeyError(f"CSV columns not found: {missing}")
-    return selected
+def _column_names(columns: Sequence[Any] | str | None) -> list[str]:
+    return [str(item) for item in _as_list(columns)]
 
 
 def _drop_users(df: pd.DataFrame, drop_users: Sequence[Any] | str | None) -> pd.DataFrame:
@@ -110,11 +86,9 @@ def resolve_csv_path(path: str | Path, dataset_name: str | None = None) -> Path:
 
 @dataclass
 class CsvTimeSeries:
-    """Date x user values plus optional global covariates."""
+    """Date x user values for target-only forecasting experiments."""
 
     frame: pd.DataFrame
-    past_covariates: pd.DataFrame | None = None
-    future_covariates: pd.DataFrame | None = None
 
     @property
     def values(self) -> np.ndarray:
@@ -166,50 +140,12 @@ class CsvTimeSeries:
         y = arr[:, None, lags:]
         return x, y
 
-    def covariate_tensors(
-        self,
-        start: int,
-        lags: int,
-        horizon: int,
-        *,
-        device: str | torch.device | None = None,
-    ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
-        """Return optional global ``past`` and ``future`` covariates.
-
-        Shapes are ``(1, channels, lags)`` and ``(1, channels, horizon)`` so
-        models can share them across all users.
-        """
-        self.validate_window(start, lags, horizon)
-        past = None
-        future = None
-        if self.past_covariates is not None:
-            values = self.past_covariates.iloc[start : start + lags].to_numpy(
-                dtype=np.float32
-            )
-            past = torch.as_tensor(
-                rearrange(values, "time channel -> 1 channel time").copy(),
-                dtype=torch.float32,
-                device=device,
-            )
-        if self.future_covariates is not None:
-            values = self.future_covariates.iloc[
-                start + lags : start + lags + horizon
-            ].to_numpy(dtype=np.float32)
-            future = torch.as_tensor(
-                rearrange(values, "time channel -> 1 channel time").copy(),
-                dtype=torch.float32,
-                device=device,
-            )
-        return past, future
-
 
 def load_csv_dataset(
     path: str | Path,
     *,
     dataset_name: str | None = None,
     target_cols: Sequence[Any] | str | None = None,
-    past_covariate_cols: Sequence[Any] | str | None = None,
-    future_covariate_cols: Sequence[Any] | str | None = None,
     date_col: str | None = None,
     drop_users: Sequence[Any] | str | None = None,
     rename_users: bool = False,
@@ -230,23 +166,17 @@ def load_csv_dataset(
     raw = _aggregate(raw, aggr, aggr_period)
     raw = raw.dropna(axis=0, how="any")
 
-    past_cols = _select_columns(raw, past_covariate_cols)
-    future_cols = _select_columns(raw, future_covariate_cols)
-    cov_cols = set(past_cols + future_cols)
-    if target_cols is None:
-        value_cols = [col for col in raw.columns if col not in cov_cols]
-    else:
-        value_cols = _select_columns(raw, target_cols)
+    value_cols = list(raw.columns) if target_cols is None else _column_names(target_cols)
+    missing = [col for col in value_cols if col not in raw.columns]
+    if missing:
+        raise KeyError(f"CSV target columns not found: {missing}")
 
     values = _drop_users(raw[value_cols].copy(), drop_users)
     if rename_users:
         values.columns = [f"user_{idx}" for idx in range(values.shape[1])]
-
-    past = raw[past_cols].copy() if past_cols else None
-    future = raw[future_cols].copy() if future_cols else None
     if values.empty:
         raise ValueError("dataset has no target columns after filtering")
-    return CsvTimeSeries(values, past_covariates=past, future_covariates=future)
+    return CsvTimeSeries(values)
 
 
 def parse_ratios(value: str | Sequence[float]) -> list[float]:
@@ -278,29 +208,6 @@ def load_json_kwargs(text_or_path: str | None) -> dict[str, Any]:
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return json.loads(text)
-
-
-def load_pretrained_model(
-    name: str,
-    *,
-    lags: int,
-    horizon: int,
-    dim: int = 1,
-    normalization: str | None = "none",
-    pretrained_path: str | Path | None = None,
-    device: str | torch.device | None = "auto",
-    model_kwargs: dict[str, Any] | None = None,
-) -> torch.nn.Module:
-    model = load_model(
-        name,
-        lags=lags,
-        dim=dim,
-        horizon=horizon,
-        normalization=normalization,
-        pretrained_path=pretrained_path,
-        **(model_kwargs or {}),
-    )
-    return model.to(resolve_device(device)).eval()
 
 
 def run_dir(output_dir: str | Path, save_name: str) -> Path:

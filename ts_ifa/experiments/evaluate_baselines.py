@@ -14,7 +14,7 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-from ..data.scaling import neighbor_to_query_scale
+from ..data.neighbors import neighbor_to_query_scale
 from .runtime import log_experiment_separator, setup_logging
 
 

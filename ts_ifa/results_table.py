@@ -254,10 +254,11 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
                 dataset_settings: Mapping[str, set[str]] | None = None, methods: Sequence[str] | None = None,
                 reference: str | None = None, decimals: int = 2, lower_is_better: bool = True,
                 bold: bool = True, dataset_improvements: bool = True, setting_improvements: bool = True,
-                overall_improvement: bool = True, auto_scale: bool = True, scale_exponent: int | None = None,
-                scale_exponents: Mapping[tuple[str, str], int] | None = None, caption: str | None = None,
-                label: str = "tab:results", excluded_from_bold: Sequence[str] | None = None,
-                short_names: bool = True) -> str:
+                overall_improvement: bool = True, positive_only: bool = False,
+                auto_scale: bool = True, scale_exponent: int | None = None,
+                scale_exponents: Mapping[tuple[str, str], int] | None = None,
+                caption: str | None = None, label: str = "tab:results",
+                excluded_from_bold: Sequence[str] | None = None, short_names: bool = True) -> str:
     """Render selected records as a complete LaTeX table environment."""
     filtered = [result for result in results if result.metric.casefold() == metric.casefold()
                 and result.split.casefold() == split.casefold()]
@@ -277,14 +278,6 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
             {result.method for result in filtered if result.method.rsplit("/", 1)[-1] != "vanilla"},
             key=str.casefold,
         )
-    excluded_selectors = set(excluded_from_bold or ())
-    excluded_methods = [
-        method for method in method_order
-        if method.rsplit("/", 1)[-1].startswith("oracle_")
-        or _method_selected(method, excluded_selectors)
-    ]
-    regular_methods = [method for method in method_order if method not in set(excluded_methods)]
-    method_order = [*regular_methods, *excluded_methods]
     filtered = [result for result in filtered if result.method in set(method_order)]
     if not filtered:
         raise ValueError(f"no results match metric={metric!r}, split={split!r}, and the selected filters")
@@ -299,6 +292,31 @@ def build_table(results: Sequence[Result], *, metric: str = "mse", split: str = 
     for (dataset, setting, method), values in grouped.items():
         finite = [value for value in values if math.isfinite(value)]
         table.setdefault((dataset, setting), {})[method] = sum(finite) / len(finite) if finite else math.nan
+    if positive_only:
+        improvements = _improvements_of_averages(
+            list(table.values()),
+            method_order,
+            reference,
+            lower_is_better,
+        )
+        keep_methods = {
+            method
+            for method in method_order
+            if method == reference or improvements.get(method, math.nan) > 0.0
+        }
+        method_order = [method for method in method_order if method in keep_methods]
+        table = {
+            key: {method: value for method, value in row.items() if method in keep_methods}
+            for key, row in table.items()
+        }
+    excluded_selectors = set(excluded_from_bold or ())
+    excluded_methods = [
+        method for method in method_order
+        if method.rsplit("/", 1)[-1].startswith("oracle_")
+        or _method_selected(method, excluded_selectors)
+    ]
+    regular_methods = [method for method in method_order if method not in set(excluded_methods)]
+    method_order = [*regular_methods, *excluded_methods]
     dataset_order = [dataset for dataset in dataset_order if any(key[0] == dataset for key in table)]
     settings_by_dataset = {dataset: sorted((key[1] for key in table if key[0] == dataset), key=_setting_key)
                            for dataset in dataset_order}
@@ -384,6 +402,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--no-dataset-improvements", action="store_true")
     parser.add_argument("--no-setting-improvements", action="store_true")
     parser.add_argument("--no-overall-improvement", action="store_true")
+    parser.add_argument(
+        "--positive-only",
+        action="store_true",
+        help="Keep only methods with positive overall improvement versus --reference",
+    )
     parser.add_argument("--no-auto-scale", action="store_true")
     parser.add_argument("--scale-exponent", type=int, default=None)
     parser.add_argument("--row-scale", action="append", default=[], metavar="DATASET/L_H=EXPONENT")
@@ -404,7 +427,7 @@ def main(argv: Sequence[str] | None = None) -> Path:
         reference=args.reference, decimals=args.decimals, lower_is_better=not args.higher_is_better,
         bold=not args.no_bold, dataset_improvements=not args.no_dataset_improvements,
         setting_improvements=not args.no_setting_improvements, overall_improvement=not args.no_overall_improvement,
-        auto_scale=not args.no_auto_scale, scale_exponent=args.scale_exponent,
+        positive_only=args.positive_only, auto_scale=not args.no_auto_scale, scale_exponent=args.scale_exponent,
         scale_exponents=_parse_scale_exponents(args.row_scale), caption=args.caption, label=args.label,
         excluded_from_bold=_split_names(args.exclude_from_bold), short_names=not args.long_method_names,
     )

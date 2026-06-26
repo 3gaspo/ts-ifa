@@ -28,6 +28,19 @@ def parameter_counts(model: nn.Module) -> tuple[int, int]:
     )
 
 
+def resolve_device(device: str | torch.device | None = "auto") -> torch.device:
+    if isinstance(device, torch.device):
+        return device
+    name = "auto" if device is None else str(device).lower()
+    if name in {"auto", "gpu", "cuda"}:
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if name in {"gpu", "cuda"}:
+            raise RuntimeError("CUDA was requested but is not available")
+        return torch.device("cpu")
+    return torch.device(name)
+
+
 class NoNormalization(nn.Module):
     name = "none"
 
@@ -42,18 +55,12 @@ class NoNormalization(nn.Module):
 class InstanceNormalization(nn.Module):
     name = "instance"
 
-    def __init__(self, eps: float = 1e-8, center: str = "mean"):
+    def __init__(self, eps: float = 1e-8):
         super().__init__()
         self.eps = float(eps)
-        self.center = str(center)
 
     def normalize(self, x: torch.Tensor) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
-        if self.center == "last":
-            mean = x[..., -1:].detach()
-        elif self.center == "mean":
-            mean = x.mean(dim=-1, keepdim=True).detach()
-        else:
-            raise ValueError("instance center must be 'mean' or 'last'")
+        mean = x.mean(dim=-1, keepdim=True).detach()
         std = x.std(dim=-1, keepdim=True, unbiased=False).detach()
         return (x - mean) / (std + self.eps), (mean, std)
 
@@ -176,6 +183,29 @@ def _load_pretrained(model: ForecastModel, path: str | Path) -> None:
     except RuntimeError:
         pass
     model.base_model.load_state_dict(state)
+
+
+def load_pretrained_model(
+    name: str,
+    *,
+    lags: int,
+    horizon: int,
+    dim: int = 1,
+    normalization: str | None = "none",
+    pretrained_path: str | Path | None = None,
+    device: str | torch.device | None = "auto",
+    model_kwargs: dict[str, Any] | None = None,
+) -> torch.nn.Module:
+    model = load_model(
+        name,
+        lags=lags,
+        dim=dim,
+        horizon=horizon,
+        normalization=normalization,
+        pretrained_path=pretrained_path,
+        **(model_kwargs or {}),
+    )
+    return model.to(resolve_device(device)).eval()
 
 
 def load_model(

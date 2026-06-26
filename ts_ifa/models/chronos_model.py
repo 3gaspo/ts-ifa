@@ -49,8 +49,9 @@ class Chronos(nn.Module):
     """Thin Chronos-2 wrapper for extraction.
 
     ``context`` is a tensor shaped ``(batch, channels, lags)`` or
-    ``(batch, channels, lags + horizon)``. Additional global covariates can be
-    supplied as ``past_covariates`` and ``future_covariates``.
+    ``(batch, channels, lags + horizon)``. With the default
+    ``context_mode="future_included"``, retrieved context contributes both
+    its lookback and its known future segment.
     """
 
     def __init__(
@@ -59,7 +60,7 @@ class Chronos(nn.Module):
         dim: int = 1,
         horizon: int | None = None,
         *,
-        context_mode: str = "past_only",
+        context_mode: str = "future_included",
         cross_learning: bool = False,
         shared_context: bool = False,
         weights_path: str | Path | None = None,

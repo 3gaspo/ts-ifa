@@ -15,9 +15,9 @@ import torch.nn.functional as F
 from einops import rearrange
 from torch.utils.data import DataLoader, Dataset
 
-from ..data.load_dataset_model import resolve_device, set_seed
-from ..data.scaling import neighbor_to_query_scale
-from ..models.models import parameter_counts
+from ..data.load_dataset import set_seed
+from ..data.neighbors import neighbor_to_query_scale
+from ..models.models import parameter_counts, resolve_device
 from ..models.ts_ifa import TSIFAConfig, TimeSeriesInformedForecastingAdapter
 from .runtime import log_experiment_separator, setup_logging
 
@@ -62,6 +62,8 @@ class PredictionPayloadDataset(Dataset):
             raise KeyError(f"payload is missing required keys: {missing}")
 
         x = payload[f"{prefix}_X_values"].float()
+        self.n_dates = int(x.shape[0])
+        self.n_users = int(x.shape[1])
         x_c_raw = payload[f"{prefix}_Xc_values"].float()
         x_c = neighbor_to_query_scale(x, x_c_raw, x_c_raw)
         if x_c.shape[2] <= 0:
@@ -99,38 +101,49 @@ class PredictionPayloadDataset(Dataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         return {key: value[index] for key, value in self.tensors.items()}
 
-    @classmethod
-    def concatenate(
-        cls,
-        datasets: list["PredictionPayloadDataset"],
-        *,
-        max_samples: int | None = None,
-    ) -> "PredictionPayloadDataset":
-        if not datasets:
-            raise ValueError("at least one training payload is required")
-        reference = datasets[0]
-        for dataset in datasets[1:]:
-            if (dataset.lags, dataset.horizon, dataset.neighbors) != (
-                reference.lags,
-                reference.horizon,
-                reference.neighbors,
-            ):
-                raise ValueError("train and oracle payload shapes are incompatible")
-        combined = cls.__new__(cls)
-        combined.prefix = "+".join(dataset.prefix for dataset in datasets)
-        combined.tensors = {
-            key: torch.cat([dataset.tensors[key] for dataset in datasets], dim=0)
-            for key in reference.tensors
-        }
-        if max_samples is not None:
-            combined.tensors = {
-                key: value[: int(max_samples)]
-                for key, value in combined.tensors.items()
-            }
-        combined.lags = reference.lags
-        combined.horizon = reference.horizon
-        combined.neighbors = reference.neighbors
-        return combined
+
+class RandomPredictionPayloadDataset(Dataset):
+    """Draw random examples from T1 so one epoch is one optimizer step."""
+
+    def __init__(self, source: PredictionPayloadDataset, *, virtual_size: int):
+        if len(source) == 0:
+            raise ValueError("cannot sample from an empty training payload")
+        if int(virtual_size) <= 0:
+            raise ValueError("virtual_size must be positive")
+        self.source = source
+        self.virtual_size = int(virtual_size)
+        self.lags = source.lags
+        self.horizon = source.horizon
+        self.neighbors = source.neighbors
+
+    def __len__(self) -> int:
+        return self.virtual_size
+
+    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+        del index
+        if len(self.source) == self.source.n_dates * self.source.n_users:
+            date_index = int(torch.randint(self.source.n_dates, ()).item())
+            user_index = int(torch.randint(self.source.n_users, ()).item())
+            source_index = date_index * self.source.n_users + user_index
+        else:
+            source_index = int(torch.randint(len(self.source), ()).item())
+        return self.source[source_index]
+
+
+def ensure_compatible(
+    reference: PredictionPayloadDataset,
+    candidate: PredictionPayloadDataset | None,
+    *,
+    name: str,
+) -> None:
+    if candidate is None:
+        return
+    if (candidate.lags, candidate.horizon, candidate.neighbors) != (
+        reference.lags,
+        reference.horizon,
+        reference.neighbors,
+    ):
+        raise ValueError(f"{name} payload shape is incompatible with train payload")
 
 
 def query_stats(x: torch.Tensor, eps: float) -> tuple[torch.Tensor, torch.Tensor]:
@@ -281,9 +294,12 @@ def plot_loss_curve(history: list[dict[str, Any]], output_path: Path) -> None:
 
     epochs = [row["epoch"] for row in history]
     train_nmse = [row.get("train_nmse", row.get("train_prediction")) for row in history]
+    valid_nmse = [row.get("valid_adapted_nmse") for row in history]
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.plot(epochs, train_nmse, label="train nMSE", linewidth=2)
+    ax.plot(epochs, train_nmse, label="train batch nMSE", linewidth=2)
+    if any(value is not None for value in valid_nmse):
+        ax.plot(epochs, valid_nmse, label="T2 validation nMSE", linewidth=2)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("nMSE")
     ax.set_title("TS-IFA training")
@@ -301,13 +317,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--oracle-payload", default=None)
     parser.add_argument("--eval-payload", default=None)
     parser.add_argument("--output-dir", default=None)
-    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--eval-batch-size", type=int, default=None)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--beta", type=float, default=1e-2, help="Penalty toward vanilla prediction")
-    parser.add_argument("--gamma", type=float, default=0.0, help="Residual branch supervision weight")
+    parser.add_argument("--gamma", type=float, default=1e-2, help="Residual branch supervision weight")
     parser.add_argument("--normalization", default="instance", choices=["instance", "none"])
     parser.add_argument("--device", default="auto")
     parser.add_argument("--seed", type=int, default=None)
@@ -370,13 +386,12 @@ def main() -> dict[str, Path]:
         args.batch_size,
     )
     LOGGER.info("payload load start")
-    train_dataset = PredictionPayloadDataset.concatenate(
-        [
-            PredictionPayloadDataset(torch_load(train_payload_path), prefix="train"),
-            PredictionPayloadDataset(torch_load(oracle_payload_path), prefix="oracle"),
-        ],
+    train_dataset = PredictionPayloadDataset(
+        torch_load(train_payload_path),
+        prefix="train",
         max_samples=args.max_train_samples,
     )
+    valid_dataset = PredictionPayloadDataset(torch_load(oracle_payload_path), prefix="oracle")
     eval_dataset = None
     if eval_payload_path is not None and eval_payload_path.exists():
         eval_dataset = PredictionPayloadDataset(
@@ -384,17 +399,30 @@ def main() -> dict[str, Path]:
             prefix="eval",
             max_samples=args.max_eval_samples,
         )
+    ensure_compatible(train_dataset, valid_dataset, name="validation")
+    ensure_compatible(train_dataset, eval_dataset, name="evaluation")
     LOGGER.info(
-        "payload load done train_samples=%s eval_samples=%s",
+        "payload load done train_samples=%s valid_samples=%s eval_samples=%s",
         len(train_dataset),
+        len(valid_dataset),
         len(eval_dataset) if eval_dataset is not None else 0,
     )
 
     eval_batch_size = args.eval_batch_size or args.batch_size
-    train_loader = DataLoader(
+    random_train_dataset = RandomPredictionPayloadDataset(
         train_dataset,
+        virtual_size=args.batch_size,
+    )
+    train_loader = DataLoader(
+        random_train_dataset,
         batch_size=args.batch_size,
-        shuffle=True,
+        shuffle=False,
+        num_workers=args.num_workers,
+    )
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=eval_batch_size,
+        shuffle=False,
         num_workers=args.num_workers,
     )
     eval_loader = None
@@ -470,16 +498,26 @@ def main() -> dict[str, Path]:
 
         row: dict[str, Any] = {
             "epoch": epoch,
+            "step": epoch,
             **{f"train_{key}": value / max(seen, 1) for key, value in totals.items()},
         }
         row["train_nmse"] = row["train_prediction"]
+        valid_metrics = evaluate(
+            model,
+            valid_loader,
+            device=device,
+            normalization=args.normalization,
+            eps=eps,
+        )
+        row.update({f"valid_{key}": value for key, value in valid_metrics.items()})
         history.append(row)
         if epoch == 1 or epoch == args.epochs or epoch % log_every == 0:
             LOGGER.info(
-                "training progress epoch=%s/%s train_nmse=%.6f",
+                "training progress epoch=%s/%s train_nmse=%.6f valid_nmse=%.6f",
                 epoch,
                 args.epochs,
                 row["train_nmse"],
+                row["valid_adapted_nmse"],
             )
     LOGGER.info("training done seconds=%.2f", perf_counter() - start_time)
 
@@ -513,9 +551,11 @@ def main() -> dict[str, Path]:
                 "trainable": trainable_parameters,
             },
             "normalization": args.normalization,
-            "train_payloads": [str(train_payload_path), str(oracle_payload_path)],
+            "train_payload": str(train_payload_path),
+            "validation_payload": str(oracle_payload_path),
             "eval_payload": str(eval_payload_path) if eval_payload_path else None,
             "epochs": args.epochs,
+            "steps": args.epochs,
         },
         checkpoint_path,
     )
@@ -543,10 +583,14 @@ def main() -> dict[str, Path]:
                 "optimizer": "AdamW",
                 "lr": args.lr,
                 "weight_decay": args.weight_decay,
-                "loss": "nMSE",
+                "loss": "normalized_mse",
                 "normalization": args.normalization,
                 "beta": args.beta,
                 "gamma": args.gamma,
+                "train_split": "T1",
+                "validation_split": "T2",
+                "final_eval_split": "T3",
+                "random_epoch_size": args.batch_size,
                 "seconds": perf_counter() - start_time,
             },
         },

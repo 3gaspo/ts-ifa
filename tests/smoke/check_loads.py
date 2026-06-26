@@ -15,11 +15,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.data.load_dataset_model import load_csv_dataset, load_pretrained_model, split_bounds  # noqa: E402
+from ts_ifa.data.load_dataset import load_csv_dataset, split_bounds  # noqa: E402
 from ts_ifa.data.neighbors import aligned_store_dates, build_window_batch  # noqa: E402
 from ts_ifa.experiments.extraction import context_on_query_scale  # noqa: E402
 from ts_ifa.models.chronos_model import Chronos  # noqa: E402
-from ts_ifa.models.models import ForecastModel, Linear, parameter_counts  # noqa: E402
+from ts_ifa.models.models import ForecastModel, Linear, load_pretrained_model, parameter_counts  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,7 +36,6 @@ def main() -> None:
         args.csv,
         date_col="date",
         target_cols="user_a,user_b",
-        future_covariate_cols="temp",
     )
     assert dataset.n_dates == 12
     assert dataset.n_users == 2
@@ -44,11 +43,8 @@ def main() -> None:
     lags = 4
     horizon = 2
     x, y = dataset.window_tensor(0, lags, horizon)
-    past_cov, future_cov = dataset.covariate_tensors(0, lags, horizon)
     assert x.shape == (2, 1, lags)
     assert y.shape == (2, 1, horizon)
-    assert past_cov is None
-    assert future_cov is not None and future_cov.shape == (1, 1, horizon)
 
     persistence = load_pretrained_model(
         "persistence",
@@ -56,7 +52,7 @@ def main() -> None:
         horizon=horizon,
         device="cpu",
     )
-    pred = persistence(x, future_covariates=future_cov)
+    pred = persistence(x)
     assert pred.shape == y.shape
 
     raw_windows = build_window_batch(
@@ -103,7 +99,7 @@ def main() -> None:
     torch.nn.Module.__init__(chronos_stub)
     chronos_stub.lags = lags
     chronos_stub.horizon = horizon
-    chronos_stub.context_mode = "future"
+    chronos_stub.context_mode = "future_included"
     chronos_stub.shared_context = False
     chronos_stub.pipeline = SimpleNamespace(model=torch.nn.Linear(3, 2))
     assert parameter_counts(chronos_stub) == (8, 8)
@@ -112,13 +108,13 @@ def main() -> None:
         x,
         context,
         past_covariates=None,
-        future_covariates=future_cov,
+        future_covariates=None,
     )
     for item in chronos_inputs:
         past_keys = set(item["past_covariates"])
         future_keys = set(item["future_covariates"])
         assert future_keys <= past_keys
-        assert {"context_0", "context_1", "context_2", "covariate_0"} == future_keys
+        assert {"context_0", "context_1", "context_2"} == future_keys
 
     scaled_context = context_on_query_scale(
         torch.tensor([[3.0, 7.0]]),
@@ -203,7 +199,7 @@ def main() -> None:
             model_kwargs={
                 "weights_path": args.chronos_weights,
                 "device_map": "cpu",
-                "context_mode": "past_only",
+                "context_mode": "future_included",
             },
         )
         assert chronos(x).shape == y.shape

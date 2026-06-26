@@ -14,16 +14,15 @@ import pandas as pd
 import torch
 from einops import rearrange
 
-from ..data.load_dataset_model import (
+from ..data.load_dataset import (
     load_csv_dataset,
     load_json_kwargs,
-    load_pretrained_model,
-    resolve_device,
     run_dir,
     set_seed,
     split_bounds,
 )
 from ..data.neighbors import period_eval_dates
+from ..models.models import load_pretrained_model, resolve_device
 from ..visu import (
     plot_error_distribution,
     plot_horizon_errors,
@@ -68,8 +67,7 @@ def evaluate_split(
     with torch.inference_mode():
         for t in dates:
             x, y = dataset.window_tensor(int(t), lags, horizon, device=device)
-            past_cov, future_cov = dataset.covariate_tensors(int(t), lags, horizon, device=device)
-            pred = model(x, past_covariates=past_cov, future_covariates=future_cov)
+            pred = model(x)
             losses = _loss_tensors(pred, y, x)
             horizon_losses.append(losses["horizon_mse"].detach().cpu())
             if first_payload is None:
@@ -160,8 +158,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--csv", required=True, help="CSV file or dataset directory")
     parser.add_argument("--dataset-name", default=None, help="CSV stem when --csv is a directory")
     parser.add_argument("--target-cols", default=None)
-    parser.add_argument("--past-covariate-cols", default=None)
-    parser.add_argument("--future-covariate-cols", default=None)
     parser.add_argument("--date-col", default=None)
     parser.add_argument("--drop-users", default=None)
     parser.add_argument("--rename-users", action="store_true")
@@ -206,8 +202,6 @@ def main() -> dict[str, Path]:
         args.csv,
         dataset_name=args.dataset_name,
         target_cols=args.target_cols,
-        past_covariate_cols=args.past_covariate_cols,
-        future_covariate_cols=args.future_covariate_cols,
         date_col=args.date_col,
         drop_users=args.drop_users,
         rename_users=args.rename_users,

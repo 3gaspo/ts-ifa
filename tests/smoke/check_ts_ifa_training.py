@@ -180,6 +180,10 @@ def run() -> None:
         config = json.loads(paths["config"].read_text(encoding="utf-8"))
         assert config["parameters"]["total"] > 0
         assert config["parameters"]["trainable"] == config["parameters"]["total"]
+        history = json.loads(paths["history"].read_text(encoding="utf-8"))["history"]
+        assert "valid_adapted_nmse" in history[0]
+        assert config["training"]["train_split"] == "T1"
+        assert config["training"]["validation_split"] == "T2"
     print("TS-IFA training smoke checks passed")
 
 

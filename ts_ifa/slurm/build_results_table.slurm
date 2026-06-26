@@ -38,6 +38,18 @@ srun python -m ts_ifa.results_table \
 
 srun python -m ts_ifa.results_table \
   "$OUT_ROOT" \
+  --output "$OUT_ROOT/results_positive.tex" \
+  --metric nmse \
+  --split eval \
+  "${DATASET_ARGS[@]}" \
+  --methods "$MAIN_METHODS" \
+  --reference chronos \
+  --positive-only \
+  --caption "Main nMSE forecasting results with positive overall improvement" \
+  --label tab:results-positive
+
+srun python -m ts_ifa.results_table \
+  "$OUT_ROOT" \
   --output "$OUT_ROOT/baselines_results.tex" \
   --metric nmse \
   --split eval \

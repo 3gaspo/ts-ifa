@@ -20,12 +20,12 @@ NEIGHBORS=(10)
 RETRIEVAL_MODE="online"
 SEED=1
 
-EPOCHS=200
+EPOCHS=1000
 BATCH_SIZE=256
-LR=0.001
+LR=0.00001
 WEIGHT_DECAY=0.0001
 BETA=0.01
-GAMMA=0.0
+GAMMA=0.01
 
 echo "$(date -Is) job start kind=ts_ifa_training"
 for dataset in "${DATASETS[@]}"; do

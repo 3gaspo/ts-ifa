@@ -32,7 +32,7 @@ PERIOD=24
 MAX_STORE_WINDOWS=30000
 SEED=1
 
-CHRONOS_KWARGS="{\"weights_path\":\"$CHRONOS_WEIGHTS_PATH\",\"device_map\":\"cuda\",\"context_mode\":\"future\"}"
+CHRONOS_KWARGS="{\"weights_path\":\"$CHRONOS_WEIGHTS_PATH\",\"device_map\":\"cuda\",\"context_mode\":\"future_included\"}"
 
 echo "$(date -Is) job start kind=extraction"
 for dataset in "${DATASETS[@]}"; do

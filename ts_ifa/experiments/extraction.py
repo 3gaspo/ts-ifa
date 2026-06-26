@@ -12,11 +12,9 @@ import numpy as np
 import torch
 from einops import rearrange
 
-from ..data.load_dataset_model import (
+from ..data.load_dataset import (
     load_csv_dataset,
     load_json_kwargs,
-    load_pretrained_model,
-    resolve_device,
     run_dir,
     set_seed,
     split_bounds,
@@ -24,11 +22,11 @@ from ..data.load_dataset_model import (
 from ..data.neighbors import (
     aligned_store_dates,
     build_window_batch,
+    neighbor_to_query_scale,
     period_eval_dates,
     search_neighbors,
 )
-from ..data.scaling import neighbor_to_query_scale
-from ..models.models import parameter_counts
+from ..models.models import load_pretrained_model, parameter_counts, resolve_device
 from ..visu import plot_series
 from .runtime import log_experiment_separator, setup_logging
 
@@ -67,14 +65,10 @@ def _predict(
     x: torch.Tensor,
     *,
     context: torch.Tensor | None,
-    past_covariates: torch.Tensor | None,
-    future_covariates: torch.Tensor | None,
 ) -> torch.Tensor:
     prediction = model(
         x,
         context=context,
-        past_covariates=past_covariates,
-        future_covariates=future_covariates,
     ).detach().cpu()
     return rearrange(prediction, "user 1 horizon -> user horizon")
 
@@ -225,13 +219,10 @@ def extract_period(
         )
         x = rearrange(query.windows[:, :lags], "user lags -> user 1 lags").to(device)
         y = query.windows[:, lags:]
-        past_cov, future_cov = dataset.covariate_tensors(t, lags, horizon, device=device)
         pred = _predict(
             model,
             x,
             context=None,
-            past_covariates=past_cov,
-            future_covariates=future_cov,
         )
 
         x_values[i] = rearrange(x.detach().cpu(), "user 1 lags -> user lags")
@@ -295,8 +286,6 @@ def extract_period(
             model,
             x,
             context=context,
-            past_covariates=past_cov,
-            future_covariates=future_cov,
         )
 
         x_c_flat = rearrange(x_c, "user neighbor lags -> (user neighbor) 1 lags").to(device)
@@ -487,8 +476,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--csv", required=True, help="CSV file or dataset directory")
     parser.add_argument("--dataset-name", default=None, help="CSV stem when --csv is a directory")
     parser.add_argument("--target-cols", default=None)
-    parser.add_argument("--past-covariate-cols", default=None)
-    parser.add_argument("--future-covariate-cols", default=None)
     parser.add_argument("--date-col", default=None)
     parser.add_argument("--drop-users", default=None)
     parser.add_argument("--rename-users", action="store_true")
@@ -566,8 +553,6 @@ def main() -> dict[str, Path]:
         args.csv,
         dataset_name=args.dataset_name,
         target_cols=args.target_cols,
-        past_covariate_cols=args.past_covariate_cols,
-        future_covariate_cols=args.future_covariate_cols,
         date_col=args.date_col,
         drop_users=args.drop_users,
         rename_users=args.rename_users,

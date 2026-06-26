@@ -112,6 +112,28 @@ def main() -> None:
         assert "14.00\\%" in averaged_latex
         assert "30.00\\%" not in averaged_latex
 
+        positive_output = generate_results_table(
+            root,
+            output=root / "positive.tex",
+            datasets=["toy"],
+            methods=["reference", "candidate"],
+            reference="reference",
+            positive_only=True,
+        )
+        positive_latex = positive_output.read_text(encoding="utf-8")
+        assert "candidate" in positive_latex
+
+        negative_output = generate_results_table(
+            root,
+            output=root / "negative.tex",
+            datasets=["toy"],
+            methods=["candidate", "reference"],
+            reference="candidate",
+            positive_only=True,
+        )
+        negative_latex = negative_output.read_text(encoding="utf-8")
+        assert "reference" not in negative_latex
+
     print("results table checks passed")
 
 

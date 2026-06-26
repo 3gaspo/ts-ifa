@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.data.scaling import neighbor_to_query_scale  # noqa: E402
+from ts_ifa.data.neighbors import neighbor_to_query_scale  # noqa: E402
 from ts_ifa.experiments.evaluate_baselines import (  # noqa: E402
     add_context_gate_predictions,
     add_eval_fitted_baselines,
@@ -26,6 +26,14 @@ from ts_ifa.experiments.evaluate_baselines import (  # noqa: E402
     ridge_no_intercept,
     scalar_gate_features,
 )
+
+
+def has_catboost() -> bool:
+    try:
+        import catboost  # noqa: F401
+    except ModuleNotFoundError:
+        return False
+    return True
 
 
 def main() -> None:
@@ -149,30 +157,31 @@ def main() -> None:
 
     gate_x = np.asarray([[0.0], [0.1], [0.9], [1.0]], dtype=np.float32)
     gate_y = np.asarray([[-4.0], [-1.0], [1.0], [4.0]], dtype=np.float32)
-    gate = fit_gate(
-        gate_x,
-        gate_y,
-        iterations=50,
-        learning_rate=0.1,
-        depth=2,
-        seed=1,
-    )
-    differences = predict_gate(gate, gate_x)
-    assert differences.shape == gate_y.shape
-    assert differences[:2].mean() < 0.0 < differences[2:].mean()
+    if has_catboost():
+        gate = fit_gate(
+            gate_x,
+            gate_y,
+            iterations=50,
+            learning_rate=0.1,
+            depth=2,
+            seed=1,
+        )
+        differences = predict_gate(gate, gate_x)
+        assert differences.shape == gate_y.shape
+        assert differences[:2].mean() < 0.0 < differences[2:].mean()
 
-    classifier = fit_gate(
-        gate_x,
-        gate_y,
-        iterations=50,
-        learning_rate=0.1,
-        depth=2,
-        seed=1,
-        objective="classifier",
-    )
-    classifier_scores = predict_gate(classifier, gate_x)
-    assert classifier_scores.shape == gate_y.shape
-    assert classifier_scores[:2].mean() < 0.0 < classifier_scores[2:].mean()
+        classifier = fit_gate(
+            gate_x,
+            gate_y,
+            iterations=50,
+            learning_rate=0.1,
+            depth=2,
+            seed=1,
+            objective="classifier",
+        )
+        classifier_scores = predict_gate(classifier, gate_x)
+        assert classifier_scores.shape == gate_y.shape
+        assert classifier_scores[:2].mean() < 0.0 < classifier_scores[2:].mean()
 
     constant_classifier = fit_gate(
         gate_x,
