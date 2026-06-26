@@ -475,12 +475,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", required=True, help="CSV file or dataset directory")
     parser.add_argument("--dataset-name", default=None, help="CSV stem when --csv is a directory")
+    parser.add_argument("--dataset-config", default=None, help="Optional dataset config JSON path")
     parser.add_argument("--target-cols", default=None)
     parser.add_argument("--date-col", default=None)
     parser.add_argument("--drop-users", default=None)
-    parser.add_argument("--rename-users", action="store_true")
+    parser.add_argument("--rename-users", action="store_true", default=None)
     parser.add_argument("--aggr", default=None)
-    parser.add_argument("--aggr-period", default="h")
+    parser.add_argument("--aggr-period", default=None)
     parser.add_argument("--model", default="persistence")
     parser.add_argument("--model-kwargs", default=None, help="JSON string or path")
     parser.add_argument("--pretrained-path", default=None)
@@ -558,6 +559,7 @@ def main() -> dict[str, Path]:
         rename_users=args.rename_users,
         aggr=args.aggr,
         aggr_period=args.aggr_period,
+        dataset_config=args.dataset_config,
     )
     LOGGER.info("dataset load done dates=%s users=%s", dataset.n_dates, dataset.n_users)
     device = resolve_device(args.device)

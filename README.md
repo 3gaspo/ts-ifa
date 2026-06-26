@@ -13,7 +13,12 @@ This repository contains Python tools for retrieval-based residual adaptation ex
 
 ## Data Flow
 
-Input data is a date-indexed CSV. Target user columns become `dataset.frame`; retrieved windows from other users provide the same physical quantity as context during inference. A window is represented as:
+Input data is a date-indexed CSV. When a dataset directory or CSV has a sibling
+`config.json`, CSV-loading options such as `drop_users`, `aggr`, and
+`aggr_period` are applied automatically; `--dataset-config` can point to a
+different JSON file. Target user columns become `dataset.frame`; retrieved
+windows from other users provide the same physical quantity as context during
+inference. A window is represented as:
 
 - `x`: `(users, 1, lags)`
 - `y`: `(users, 1, horizon)`
@@ -75,7 +80,7 @@ python -m ts_ifa.experiments.features --input-dir outputs/results/electricity_ch
 Train TS-IFA from extracted payloads:
 
 ```powershell
-python -m ts_ifa.experiments.train_ts_ifa --input-dir outputs/results/electricity_chronos_k5 --epochs 1000 --batch-size 256 --lr 1e-5 --gamma 1e-2 --normalization instance
+python -m ts_ifa.experiments.train_ts_ifa --input-dir outputs/results/electricity_chronos_k5 --epochs 10000 --batch-size 256 --lr 1e-5 --gamma 1e-2 --normalization instance
 ```
 
 Evaluate ridge and neighbor baselines from completed payloads:
@@ -140,7 +145,10 @@ sbatch ts_ifa/slurm/build_results_table.slurm
 ```
 
 The current scripts run electricity and hourly-summed solar for L-H settings
-168-24 and 672-168. All runs use Chronos, instance-normalized L2 retrieval,
+168-24 and 672-168. Dataset-specific CSV options are read from
+`../datasets/<dataset>/config.json`; electricity drops the configured legacy
+series and solar uses hourly `sum` aggregation. All runs use Chronos,
+instance-normalized L2 retrieval,
 10 neighbors, online retrieval, 24-step T1/T2 query strides, a 128-step T3
 evaluation stride, and a 30,000-window datastore cap with a 24-step aligned
 datastore stride. The extraction job is the only job that loads Chronos and builds T1/T2/T3
@@ -169,7 +177,7 @@ projected to `[0, 1]` with `np.clip`, so the reported mix0 prediction is always
 a convex interpolation between the vanilla forecast and the weighted-neighbor
 forecast.
 
-Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual-supervision losses in that normalized space. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job samples random T1 date/user examples for one optimizer step per epoch, evaluates the full deterministic T2 validation payload every epoch, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
+Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual-supervision losses in that normalized space. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job trains for 10000 epochs, samples random T1 date/user examples for one optimizer step per epoch, evaluates the full deterministic T2 validation payload every epoch, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
 
 The dedicated result job writes five nMSE tables:
 

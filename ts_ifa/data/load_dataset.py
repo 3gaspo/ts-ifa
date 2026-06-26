@@ -6,7 +6,7 @@ import json
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -40,6 +40,63 @@ def _as_list(value: Any) -> list[Any]:
 
 def _column_names(columns: Sequence[Any] | str | None) -> list[str]:
     return [str(item) for item in _as_list(columns)]
+
+
+DATASET_CONFIG_KEYS = {
+    "target_cols",
+    "date_col",
+    "drop_users",
+    "rename_users",
+    "aggr",
+    "aggr_period",
+}
+
+
+def _dataset_config_path(
+    path: str | Path,
+    dataset_config: str | Path | None = None,
+) -> tuple[Path, bool]:
+    if dataset_config not in {None, ""}:
+        config_path = Path(dataset_config).expanduser()
+        return (config_path / "config.json" if config_path.is_dir() else config_path), True
+    base = Path(path).expanduser()
+    directory = base.parent if base.suffix.lower() == ".csv" else base
+    return directory / "config.json", False
+
+
+def _dataset_config_options(raw: Mapping[str, Any]) -> dict[str, Any]:
+    options = {key: raw[key] for key in DATASET_CONFIG_KEYS if key in raw}
+    scoped = raw.get("ts_ifa")
+    if scoped is not None:
+        if not isinstance(scoped, Mapping):
+            raise ValueError("dataset config field 'ts_ifa' must be an object")
+        options.update(scoped)
+    return options
+
+
+def load_dataset_config(
+    path: str | Path,
+    dataset_config: str | Path | None = None,
+) -> dict[str, Any]:
+    config_path, explicit = _dataset_config_path(path, dataset_config)
+    if not config_path.exists():
+        if explicit:
+            raise FileNotFoundError(config_path)
+        return {}
+    if config_path.suffix.lower() != ".json":
+        raise ValueError(f"dataset config must be JSON, got {config_path}")
+    raw = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"dataset config must contain a JSON object: {config_path}")
+    return _dataset_config_options(raw)
+
+
+def _configured_value(explicit: Any, configured: Any, default: Any = None) -> Any:
+    if explicit is not None:
+        return explicit
+    if configured is not None:
+        return configured
+    return default
 
 
 def _drop_users(df: pd.DataFrame, drop_users: Sequence[Any] | str | None) -> pd.DataFrame:
@@ -148,10 +205,19 @@ def load_csv_dataset(
     target_cols: Sequence[Any] | str | None = None,
     date_col: str | None = None,
     drop_users: Sequence[Any] | str | None = None,
-    rename_users: bool = False,
+    rename_users: bool | None = None,
     aggr: str | None = None,
-    aggr_period: str = "h",
+    aggr_period: str | None = None,
+    dataset_config: str | Path | None = None,
 ) -> CsvTimeSeries:
+    config = load_dataset_config(path, dataset_config)
+    target_cols = _configured_value(target_cols, config.get("target_cols"))
+    date_col = _configured_value(date_col, config.get("date_col"))
+    drop_users = _configured_value(drop_users, config.get("drop_users"))
+    rename_users = bool(_configured_value(rename_users, config.get("rename_users"), False))
+    aggr = _configured_value(aggr, config.get("aggr"))
+    aggr_period = str(_configured_value(aggr_period, config.get("aggr_period"), "h"))
+
     csv_path = resolve_csv_path(path, dataset_name)
     if date_col:
         raw = pd.read_csv(csv_path, parse_dates=[date_col])

@@ -14,7 +14,6 @@ export PYTHONPATH="$(pwd)"
 DATA_ROOT="../datasets"
 OUT_ROOT="outputs/results"
 CHRONOS_WEIGHTS_PATH="../weights/chronos2"
-ELECTRICITY_DROP_USERS="57;106;127;182;298;6;113;143"
 
 DATASETS=("electricity" "solar")
 SETTINGS=("168 24" "672 168")
@@ -37,9 +36,9 @@ CHRONOS_KWARGS="{\"weights_path\":\"$CHRONOS_WEIGHTS_PATH\",\"device_map\":\"cud
 echo "$(date -Is) job start kind=extraction"
 for dataset in "${DATASETS[@]}"; do
   DATASET_DIR="$DATA_ROOT/$dataset"
+  DATA_CONFIG="$DATASET_DIR/config.json"
   DATA_ARGS=()
-  [ "$dataset" = "electricity" ] && DATA_ARGS+=(--drop-users "$ELECTRICITY_DROP_USERS")
-  [ "$dataset" = "solar" ] && DATA_ARGS+=(--aggr sum --aggr-period h)
+  [ -f "$DATA_CONFIG" ] && DATA_ARGS+=(--dataset-config "$DATA_CONFIG")
 
   for setting in "${SETTINGS[@]}"; do
     read -r L H <<< "$setting"

@@ -317,7 +317,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--oracle-payload", default=None)
     parser.add_argument("--eval-payload", default=None)
     parser.add_argument("--output-dir", default=None)
-    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--epochs", type=int, default=10000)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--eval-batch-size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=1e-5)
