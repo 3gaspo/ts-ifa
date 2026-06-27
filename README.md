@@ -122,7 +122,13 @@ no feature construction, split construction, model fitting, or model inference.
 
 ## SLURM Experiments
 
-Edit the literal config block near the top of each script, especially `DATASETS` and `SETTINGS`, then submit from the repository root. Shared Chronos weights are expected under `../weights/chronos2/`. Model results are written under `outputs/results/`, while SLURM stdout and stderr are written under `script_outputs/`.
+Edit the literal config block near the top of each script, especially
+`DATASETS` and `SETTINGS`, then submit from the repository root. `SHARED_ROOT`
+defaults to `..`, the parent folder that contains both `datasets/` and
+`weights/`; Chronos weights are expected under
+`${SHARED_ROOT}/weights/chronos2/`. Model results are written under
+`outputs/results/`, while SLURM stdout and stderr are written under
+`script_outputs/`.
 
 First evaluate direct forecasts and create the shared retrieval payloads:
 
@@ -146,8 +152,8 @@ sbatch ts_ifa/slurm/build_results_table.slurm
 
 The current scripts run electricity and hourly-summed solar for L-H settings
 168-24 and 672-168. Dataset-specific CSV options are read from
-`../datasets/<dataset>/config.json`; electricity drops the configured legacy
-series and solar uses hourly `sum` aggregation. All runs use Chronos,
+`${SHARED_ROOT}/datasets/<dataset>/config.json`; electricity drops the
+configured legacy series and solar uses hourly `sum` aggregation. All runs use Chronos,
 instance-normalized L2 retrieval,
 10 neighbors, online retrieval, 24-step T1/T2 query strides, a 128-step T3
 evaluation stride, and a 30,000-window datastore cap with a 24-step aligned

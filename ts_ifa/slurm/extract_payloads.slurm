@@ -11,9 +11,10 @@ set -euo pipefail
 source .venv/bin/activate
 export PYTHONPATH="$(pwd)"
 
-DATA_ROOT="../datasets"
+SHARED_ROOT=".."
+DATA_ROOT="${SHARED_ROOT}/datasets"
 OUT_ROOT="outputs/results"
-CHRONOS_WEIGHTS_PATH="../weights/chronos2"
+CHRONOS_WEIGHTS_PATH="${SHARED_ROOT}/weights/chronos2"
 
 DATASETS=("electricity" "solar")
 SETTINGS=("168 24" "672 168")
@@ -38,7 +39,16 @@ for dataset in "${DATASETS[@]}"; do
   DATASET_DIR="$DATA_ROOT/$dataset"
   DATA_CONFIG="$DATASET_DIR/config.json"
   DATA_ARGS=()
-  [ -f "$DATA_CONFIG" ] && DATA_ARGS+=(--dataset-config "$DATA_CONFIG")
+  if [ ! -d "$DATASET_DIR" ]; then
+    echo "$(date -Is) missing dataset directory dataset=$dataset path=$DATASET_DIR" >&2
+    exit 1
+  fi
+  if [ ! -f "$DATA_CONFIG" ]; then
+    echo "$(date -Is) missing dataset config dataset=$dataset path=$DATA_CONFIG" >&2
+    exit 1
+  fi
+  echo "$(date -Is) dataset config dataset=$dataset path=$DATA_CONFIG"
+  DATA_ARGS+=(--dataset-config "$DATA_CONFIG")
 
   for setting in "${SETTINGS[@]}"; do
     read -r L H <<< "$setting"

@@ -130,6 +130,33 @@ class RandomPredictionPayloadDataset(Dataset):
         return self.source[source_index]
 
 
+def log_scale_diagnostics(name: str, dataset: PredictionPayloadDataset | None) -> None:
+    if dataset is None:
+        return
+    scale = dataset.tensors["x"].std(dim=-1, unbiased=False).float()
+    if scale.numel() == 0:
+        LOGGER.info("payload scale split=%s samples=0", name)
+        return
+    quantiles = torch.quantile(
+        scale,
+        torch.tensor([0.0, 0.001, 0.01, 0.05, 0.1, 0.5], dtype=torch.float32),
+    )
+    LOGGER.info(
+        "payload scale split=%s samples=%s std_min=%.6g std_q001=%.6g std_q01=%.6g std_q05=%.6g std_q10=%.6g std_median=%.6g below_1e-8=%s below_1e-6=%s below_1e-3=%s",
+        name,
+        len(dataset),
+        float(quantiles[0]),
+        float(quantiles[1]),
+        float(quantiles[2]),
+        float(quantiles[3]),
+        float(quantiles[4]),
+        float(quantiles[5]),
+        int((scale < 1e-8).sum().item()),
+        int((scale < 1e-6).sum().item()),
+        int((scale < 1e-3).sum().item()),
+    )
+
+
 def ensure_compatible(
     reference: PredictionPayloadDataset,
     candidate: PredictionPayloadDataset | None,
@@ -407,6 +434,9 @@ def main() -> dict[str, Path]:
         len(valid_dataset),
         len(eval_dataset) if eval_dataset is not None else 0,
     )
+    log_scale_diagnostics("train", train_dataset)
+    log_scale_diagnostics("valid", valid_dataset)
+    log_scale_diagnostics("eval", eval_dataset)
 
     eval_batch_size = args.eval_batch_size or args.batch_size
     random_train_dataset = RandomPredictionPayloadDataset(

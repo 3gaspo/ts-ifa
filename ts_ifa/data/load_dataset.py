@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,9 @@ import numpy as np
 import pandas as pd
 import torch
 from einops import rearrange
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def set_seed(seed: int | None) -> None:
@@ -88,7 +92,9 @@ def load_dataset_config(
     raw = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(raw, Mapping):
         raise ValueError(f"dataset config must contain a JSON object: {config_path}")
-    return _dataset_config_options(raw)
+    options = _dataset_config_options(raw)
+    LOGGER.info("loaded dataset config path=%s keys=%s", config_path, sorted(options))
+    return options
 
 
 def _configured_value(explicit: Any, configured: Any, default: Any = None) -> Any:
@@ -102,13 +108,18 @@ def _configured_value(explicit: Any, configured: Any, default: Any = None) -> An
 def _drop_users(df: pd.DataFrame, drop_users: Sequence[Any] | str | None) -> pd.DataFrame:
     columns = []
     for item in _as_list(drop_users):
-        if isinstance(item, int) or (isinstance(item, str) and item.lstrip("-").isdigit()):
+        item_text = str(item)
+        if item in df.columns:
+            columns.append(item)
+        elif item_text in df.columns:
+            columns.append(item_text)
+        elif isinstance(item, int) or item_text.lstrip("-").isdigit():
             idx = int(item)
             if idx < 0 or idx >= len(df.columns):
                 raise IndexError(f"drop user index out of range: {idx}")
             columns.append(df.columns[idx])
         else:
-            columns.append(str(item))
+            columns.append(item_text)
     return df.drop(columns=columns) if columns else df
 
 
