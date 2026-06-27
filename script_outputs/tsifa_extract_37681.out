@@ -1,0 +1,122 @@
+2026-06-26T16:26:10+02:00 job start kind=extraction
+2026-06-26T16:26:10+02:00 setting start dataset=electricity lags=168 horizon=24
+2026-06-26 16:26:14,125 INFO [__main__] ========================================================================
+2026-06-26 16:26:14,126 INFO [__main__] experiment start kind=univariate dataset=electricity model=chronos lags=168 horizon=24
+2026-06-26 16:26:14,502 INFO [__main__] dataset load start
+2026-06-26 16:26:15,169 INFO [__main__] dataset load done dates=26304 users=321
+2026-06-26 16:26:15,170 INFO [__main__] model load start
+2026-06-26 16:26:32,375 INFO [__main__] model load done device=cuda
+2026-06-26 16:26:32,390 INFO [__main__] evaluation start split=eval queries=40
+2026-06-26 16:29:22,306 INFO [__main__] evaluation done split=eval
+2026-06-26 16:29:23,373 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/168_24/direct/chronos
+2026-06-26 16:29:23,373 INFO [__main__] experiment done seconds=189.25
+2026-06-26 16:29:23,373 INFO [__main__] ========================================================================
+2026-06-26T16:29:24+02:00 extraction start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-26 16:29:27,751 INFO [__main__] ========================================================================
+2026-06-26 16:29:27,751 INFO [__main__] experiment start kind=extraction dataset=electricity model=chronos lags=168 horizon=24 neighbors=10 distance=instance/euclidean
+2026-06-26 16:29:28,194 INFO [__main__] dataset load start
+2026-06-26 16:29:28,865 INFO [__main__] dataset load done dates=26304 users=321
+2026-06-26 16:29:28,865 INFO [__main__] model load start
+2026-06-26 16:29:45,576 INFO [__main__] model load done name=chronos device=cuda parameters_total=119,477,664 parameters_trainable=0
+2026-06-26 16:29:45,585 INFO [__main__] extraction start split=train queries=376
+2026-06-26 16:38:45,203 INFO [__main__] extraction done split=train
+2026-06-26 16:38:45,203 INFO [__main__] extraction start split=oracle queries=157
+2026-06-26 16:42:30,156 INFO [__main__] extraction done split=oracle
+2026-06-26 16:42:30,156 INFO [__main__] extraction start split=eval queries=40
+2026-06-26 16:43:27,442 INFO [__main__] extraction done split=eval
+2026-06-26 16:43:28,444 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/168_24/chronos_instance_euclidean_10_online
+2026-06-26 16:43:28,444 INFO [__main__] experiment done seconds=840.69
+2026-06-26 16:43:28,444 INFO [__main__] ========================================================================
+2026-06-26T16:43:29+02:00 extraction done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-26T16:43:29+02:00 setting done dataset=electricity lags=168 horizon=24
+2026-06-26T16:43:29+02:00 setting start dataset=electricity lags=672 horizon=168
+2026-06-26 16:43:33,178 INFO [__main__] ========================================================================
+2026-06-26 16:43:33,178 INFO [__main__] experiment start kind=univariate dataset=electricity model=chronos lags=672 horizon=168
+2026-06-26 16:43:33,542 INFO [__main__] dataset load start
+2026-06-26 16:43:34,218 INFO [__main__] dataset load done dates=26304 users=321
+2026-06-26 16:43:34,218 INFO [__main__] model load start
+2026-06-26 16:43:50,831 INFO [__main__] model load done device=cuda
+2026-06-26 16:43:50,857 INFO [__main__] evaluation start split=eval queries=35
+2026-06-26 16:46:27,573 INFO [__main__] evaluation done split=eval
+2026-06-26 16:46:28,594 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/672_168/direct/chronos
+2026-06-26 16:46:28,594 INFO [__main__] experiment done seconds=175.42
+2026-06-26 16:46:28,594 INFO [__main__] ========================================================================
+2026-06-26T16:46:29+02:00 extraction start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-26 16:46:32,964 INFO [__main__] ========================================================================
+2026-06-26 16:46:32,964 INFO [__main__] experiment start kind=extraction dataset=electricity model=chronos lags=672 horizon=168 neighbors=10 distance=instance/euclidean
+2026-06-26 16:46:33,301 INFO [__main__] dataset load start
+2026-06-26 16:46:33,974 INFO [__main__] dataset load done dates=26304 users=321
+2026-06-26 16:46:33,974 INFO [__main__] model load start
+2026-06-26 16:46:51,071 INFO [__main__] model load done name=chronos device=cuda parameters_total=119,477,664 parameters_trainable=0
+2026-06-26 16:46:51,080 INFO [__main__] extraction start split=train queries=349
+2026-06-26 17:10:09,123 INFO [__main__] extraction done split=train
+2026-06-26 17:10:09,124 INFO [__main__] extraction start split=oracle queries=130
+2026-06-26 17:18:47,474 INFO [__main__] extraction done split=oracle
+2026-06-26 17:18:47,474 INFO [__main__] extraction start split=eval queries=35
+2026-06-26 17:21:06,852 INFO [__main__] extraction done split=eval
+2026-06-26 17:21:08,189 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/electricity/672_168/chronos_instance_euclidean_10_online
+2026-06-26 17:21:08,189 INFO [__main__] experiment done seconds=2075.23
+2026-06-26 17:21:08,189 INFO [__main__] ========================================================================
+2026-06-26T17:21:09+02:00 extraction done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-26T17:21:09+02:00 setting done dataset=electricity lags=672 horizon=168
+2026-06-26T17:21:09+02:00 setting start dataset=solar lags=168 horizon=24
+2026-06-26 17:21:12,955 INFO [__main__] ========================================================================
+2026-06-26 17:21:12,955 INFO [__main__] experiment start kind=univariate dataset=solar model=chronos lags=168 horizon=24
+2026-06-26 17:21:13,294 INFO [__main__] dataset load start
+2026-06-26 17:21:13,661 INFO [__main__] dataset load done dates=52560 users=137
+2026-06-26 17:21:13,661 INFO [__main__] model load start
+2026-06-26 17:21:31,343 INFO [__main__] model load done device=cuda
+2026-06-26 17:21:31,376 INFO [__main__] evaluation start split=eval queries=81
+2026-06-26 17:26:39,929 INFO [__main__] evaluation done split=eval
+2026-06-26 17:26:40,970 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/solar/168_24/direct/chronos
+2026-06-26 17:26:40,970 INFO [__main__] experiment done seconds=328.01
+2026-06-26 17:26:40,970 INFO [__main__] ========================================================================
+2026-06-26T17:26:41+02:00 extraction start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-26 17:26:45,354 INFO [__main__] ========================================================================
+2026-06-26 17:26:45,354 INFO [__main__] experiment start kind=extraction dataset=solar model=chronos lags=168 horizon=24 neighbors=10 distance=instance/euclidean
+2026-06-26 17:26:45,552 INFO [__main__] dataset load start
+2026-06-26 17:26:45,916 INFO [__main__] dataset load done dates=52560 users=137
+2026-06-26 17:26:45,916 INFO [__main__] model load start
+2026-06-26 17:27:02,885 INFO [__main__] model load done name=chronos device=cuda parameters_total=119,477,664 parameters_trainable=0
+2026-06-26 17:27:02,897 INFO [__main__] extraction start split=train queries=759
+2026-06-26 17:35:34,444 INFO [__main__] extraction done split=train
+2026-06-26 17:35:34,444 INFO [__main__] extraction start split=oracle queries=321
+2026-06-26 17:39:06,948 INFO [__main__] extraction done split=oracle
+2026-06-26 17:39:06,948 INFO [__main__] extraction start split=eval queries=81
+2026-06-26 17:40:01,391 INFO [__main__] extraction done split=eval
+2026-06-26 17:40:02,198 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/solar/168_24/chronos_instance_euclidean_10_online
+2026-06-26 17:40:02,199 INFO [__main__] experiment done seconds=796.84
+2026-06-26 17:40:02,199 INFO [__main__] ========================================================================
+2026-06-26T17:40:03+02:00 extraction done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-26T17:40:03+02:00 setting done dataset=solar lags=168 horizon=24
+2026-06-26T17:40:03+02:00 setting start dataset=solar lags=672 horizon=168
+2026-06-26 17:40:06,594 INFO [__main__] ========================================================================
+2026-06-26 17:40:06,594 INFO [__main__] experiment start kind=univariate dataset=solar model=chronos lags=672 horizon=168
+2026-06-26 17:40:06,829 INFO [__main__] dataset load start
+2026-06-26 17:40:07,194 INFO [__main__] dataset load done dates=52560 users=137
+2026-06-26 17:40:07,194 INFO [__main__] model load start
+2026-06-26 17:40:23,479 INFO [__main__] model load done device=cuda
+2026-06-26 17:40:23,510 INFO [__main__] evaluation start split=eval queries=76
+2026-06-26 17:45:11,148 INFO [__main__] evaluation done split=eval
+2026-06-26 17:45:12,351 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/solar/672_168/direct/chronos
+2026-06-26 17:45:12,351 INFO [__main__] experiment done seconds=305.76
+2026-06-26 17:45:12,351 INFO [__main__] ========================================================================
+2026-06-26T17:45:13+02:00 extraction start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-26 17:45:18,478 INFO [__main__] ========================================================================
+2026-06-26 17:45:18,478 INFO [__main__] experiment start kind=extraction dataset=solar model=chronos lags=672 horizon=168 neighbors=10 distance=instance/euclidean
+2026-06-26 17:45:18,724 INFO [__main__] dataset load start
+2026-06-26 17:45:19,088 INFO [__main__] dataset load done dates=52560 users=137
+2026-06-26 17:45:19,088 INFO [__main__] model load start
+2026-06-26 17:45:35,349 INFO [__main__] model load done name=chronos device=cuda parameters_total=119,477,664 parameters_trainable=0
+2026-06-26 17:45:35,361 INFO [__main__] extraction start split=train queries=732
+2026-06-26 18:08:39,788 INFO [__main__] extraction done split=train
+2026-06-26 18:08:39,788 INFO [__main__] extraction start split=oracle queries=294
+2026-06-26 18:17:54,668 INFO [__main__] extraction done split=oracle
+2026-06-26 18:17:54,668 INFO [__main__] extraction start split=eval queries=76
+2026-06-26 18:20:18,287 INFO [__main__] extraction done split=eval
+2026-06-26 18:20:19,534 INFO [__main__] outputs saved dir=/home/h61084/codes/ts-ifa/outputs/results/solar/672_168/chronos_instance_euclidean_10_online
+2026-06-26 18:20:19,534 INFO [__main__] experiment done seconds=2101.06
+2026-06-26 18:20:19,534 INFO [__main__] ========================================================================
+2026-06-26T18:20:20+02:00 extraction done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-06-26T18:20:20+02:00 setting done dataset=solar lags=672 horizon=168
+2026-06-26T18:20:20+02:00 job done kind=extraction

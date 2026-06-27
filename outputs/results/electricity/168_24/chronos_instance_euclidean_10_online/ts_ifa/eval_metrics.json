@@ -1,9 +1,9 @@
 {
-  "adapted_nmse": 0.19660770824542062,
-  "vanilla_nmse": 0.17414738667277863,
-  "context_nmse": 0.162176834660978,
-  "residual_branch_nmse": 5322754.458785943,
-  "memory_branch_nmse": 1816702.0728434506,
-  "adapted_mse": 1978130.5514376997,
-  "adapted_mae": 163.18533533845846
+  "adapted_nmse": 183054278483321.22,
+  "vanilla_nmse": 183054278483321.22,
+  "context_nmse": 183054278483321.22,
+  "residual_branch_nmse": 183054278483321.25,
+  "memory_branch_nmse": 183054278483322.25,
+  "adapted_mse": 2013162.957424715,
+  "adapted_mae": 168.20607507058014
 }

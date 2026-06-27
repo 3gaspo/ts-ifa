@@ -2,89 +2,89 @@
   {
     "split": "eval",
     "baseline": "vanilla",
-    "mse": 815.6561889648438,
-    "mae": 12.195671081542969,
-    "nmse": 0.3212943971157074,
+    "mse": 10.999703407287598,
+    "mae": 1.2937020063400269,
+    "nmse": 1.6737022399902344,
     "relative_nmse_improvement_pct": 0.0
   },
   {
     "split": "eval",
     "baseline": "context_conditioned",
-    "mse": 861.859619140625,
-    "mae": 12.47620964050293,
-    "nmse": 0.3365011513233185,
-    "relative_nmse_improvement_pct": -4.73296594619751
+    "mse": 11.159446716308594,
+    "mae": 1.3096802234649658,
+    "nmse": 1.4234081506729126,
+    "relative_nmse_improvement_pct": 14.954517364501953
   },
   {
     "split": "eval",
     "baseline": "neighbor_weighted_mean",
-    "mse": 1076.978134833643,
-    "mae": 16.18332140915009,
-    "nmse": 0.4308008000574082,
-    "relative_nmse_improvement_pct": -34.08288595280557
+    "mse": 14.520623817026001,
+    "mae": 1.57074577768317,
+    "nmse": 1.58135934301643,
+    "relative_nmse_improvement_pct": 5.51728346700086
   },
   {
     "split": "eval",
     "baseline": "neighbor_unweighted_mean",
-    "mse": 1042.84033203125,
-    "mae": 16.293495178222656,
-    "nmse": 0.4223789870738983,
-    "relative_nmse_improvement_pct": -31.461673736572266
+    "mse": 12.764104843139648,
+    "mae": 1.5117045640945435,
+    "nmse": 1.4975866079330444,
+    "relative_nmse_improvement_pct": 10.522518157958984
   },
   {
     "split": "eval",
     "baseline": "pred_plus_weighted_e",
-    "mse": 939.7903597446272,
-    "mae": 13.353551786216615,
-    "nmse": 0.3768252995445843,
-    "relative_nmse_improvement_pct": -17.283495425809946
+    "mse": 13.74971422541096,
+    "mae": 1.4457760149300725,
+    "nmse": 1.5587546140928705,
+    "relative_nmse_improvement_pct": 6.8678659292488335
   },
   {
     "split": "eval",
     "baseline": "mix_0_weighted",
-    "mse": 798.5392801963909,
-    "mae": 12.231362243301744,
-    "nmse": 0.31378378833917137,
-    "relative_nmse_improvement_pct": 2.3376096327727884
+    "mse": 10.814460467241878,
+    "mae": 1.3092975447991548,
+    "nmse": 1.5524454191957613,
+    "relative_nmse_improvement_pct": 7.244826343494682
   },
   {
     "split": "eval",
     "baseline": "mix_1_learned",
-    "mse": 759.6934658438354,
-    "mae": 12.141692539255093,
-    "nmse": 0.3007854323405347,
-    "relative_nmse_improvement_pct": 6.383231378848742
+    "mse": 10.565942811268425,
+    "mae": 1.3118405739312136,
+    "nmse": 1.5651191276029097,
+    "relative_nmse_improvement_pct": 6.487600350463665
   },
   {
     "split": "eval",
     "baseline": "mix_2_full_horizon",
-    "mse": 1125.8505859375,
-    "mae": 13.909516334533691,
-    "nmse": 0.45664718747138977,
-    "relative_nmse_improvement_pct": -42.127342224121094
+    "mse": 10.544401168823242,
+    "mae": 1.305931806564331,
+    "nmse": 1.536374568939209,
+    "relative_nmse_improvement_pct": 8.205023765563965
   },
   {
     "split": "eval",
     "baseline": "mix_0_weighted_eval_fit",
-    "mse": 797.2860820643027,
-    "mae": 12.354942696531799,
-    "nmse": 0.3131682336535595,
-    "relative_nmse_improvement_pct": 2.5291955088844666
+    "mse": 10.681683276641085,
+    "mae": 1.2873195136991242,
+    "nmse": 1.5879946500641418,
+    "relative_nmse_improvement_pct": 5.120838574404531
   },
   {
     "split": "eval",
     "baseline": "mix_1_learned_eval_fit",
-    "mse": 690.1365713352583,
-    "mae": 12.625568033227772,
-    "nmse": 0.27780317256662485,
-    "relative_nmse_improvement_pct": 13.536253647591654
+    "mse": 10.410171919061149,
+    "mae": 1.2919241711516074,
+    "nmse": 1.563855122337613,
+    "relative_nmse_improvement_pct": 6.563121864093483
   },
   {
     "split": "eval",
     "baseline": "mix_2_full_horizon_eval_fit",
-    "mse": 538.9124755859375,
-    "mae": 10.59063720703125,
-    "nmse": 0.23094914853572845,
-    "relative_nmse_improvement_pct": 28.11914825439453
+    "mse": 10.298245429992676,
+    "mae": 1.2846070528030396,
+    "nmse": 1.5187280178070068,
+    "relative_nmse_improvement_pct": 9.259366035461426
   }
 ]

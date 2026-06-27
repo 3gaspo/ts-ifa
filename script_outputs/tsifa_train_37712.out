@@ -1,0 +1,15 @@
+2026-06-27T11:42:54+02:00 job start kind=ts_ifa_training
+2026-06-27T11:42:54+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-06-27 11:42:56,886 INFO [__main__] ========================================================================
+2026-06-27 11:42:57,172 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online epochs=1000 batch_size=256
+2026-06-27 11:42:57,172 INFO [__main__] payload load start
+2026-06-27 11:43:06,458 INFO [__main__] payload load done train_samples=120696 valid_samples=50397 eval_samples=12840
+2026-06-27 11:43:06,658 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=816,272 parameters_trainable=816,272
+2026-06-27 11:43:06,658 INFO [__main__] training start
+2026-06-27 11:43:08,029 INFO [__main__] training progress epoch=1/1000 train_nmse=0.175032 valid_nmse=529132053680.766296
+2026-06-27 11:44:01,475 INFO [__main__] training progress epoch=50/1000 train_nmse=0.177756 valid_nmse=529132053680.766296
+2026-06-27 11:44:56,176 INFO [__main__] training progress epoch=100/1000 train_nmse=0.185890 valid_nmse=529132053680.766296
+2026-06-27 11:45:50,493 INFO [__main__] training progress epoch=150/1000 train_nmse=0.191989 valid_nmse=529132053680.766052
+2026-06-27 11:46:45,384 INFO [__main__] training progress epoch=200/1000 train_nmse=0.205802 valid_nmse=529132053680.765869
+2026-06-27 11:47:39,850 INFO [__main__] training progress epoch=250/1000 train_nmse=0.177094 valid_nmse=529132053680.766235
+2026-06-27 11:48:34,337 INFO [__main__] training progress epoch=300/1000 train_nmse=0.226670 valid_nmse=529132053680.766724

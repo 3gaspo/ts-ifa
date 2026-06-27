@@ -23,12 +23,16 @@
   },
   "training": {
     "optimizer": "AdamW",
-    "lr": 0.001,
+    "lr": 1e-05,
     "weight_decay": 0.0001,
-    "loss": "nMSE",
+    "loss": "normalized_mse",
     "normalization": "instance",
     "beta": 0.01,
-    "gamma": 0.0,
-    "seconds": 1549.7022880502045
+    "gamma": 0.01,
+    "train_split": "T1",
+    "validation_split": "T2",
+    "final_eval_split": "T3",
+    "random_epoch_size": 256,
+    "seconds": 13717.24961315468
   }
 }

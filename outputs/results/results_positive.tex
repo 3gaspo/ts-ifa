@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\centering
+\caption{Main nMSE forecasting results with positive overall improvement}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcrrrrrrr}
+\toprule
+Dataset & $L$--$H$ & Scale & chronos & IN\_L2\_10/context & IN\_L2\_10/mix0 & IN\_L2\_10/gate-cls-s & IN\_L2\_10/gate-cls-h & IN\_L2\_10/gate-reg-s & IN\_L2\_10/gate-reg-h \\
+\midrule
+\multirow{2}{*}{electricity} & 168--24 & $\times 10^{14}$ & 1.83 & 1.83 & \textbf{1.83} & 1.83 & 1.83 & 1.83 & 1.83 \\
+ & 672--168 & $\times 10^{14}$ & 3.24 & 3.24 & \textbf{3.24} & 3.24 & 3.24 & 3.24 & 3.24 \\
+ & \textit{Improvement} &  & 0.00\% & 0.00\% & \textbf{0.00\%} & 0.00\% & 0.00\% & 0.00\% & 0.00\% \\
+\midrule
+\multirow{2}{*}{solar} & 168--24 & $\times 10^{0}$ & 1.67 & \textbf{1.42} & 1.55 & 1.67 & 1.64 & 1.49 & 1.53 \\
+ & 672--168 & $\times 10^{-1}$ & 2.62 & 2.91 & 2.74 & 2.66 & \textbf{2.61} & 2.63 & 2.62 \\
+ & \textit{Improvement} &  & 0.00\% & \textbf{11.42\%} & 5.64\% & -0.23\% & 1.73\% & 9.65\% & 7.27\% \\
+\midrule
+\multicolumn{10}{l}{\textit{Improvements by setting}} \\
+ & 168--24 &  & 0.00\% & 0.00\% & \textbf{0.00\%} & 0.00\% & 0.00\% & 0.00\% & 0.00\% \\
+ & 672--168 &  & 0.00\% & 0.00\% & \textbf{0.00\%} & 0.00\% & 0.00\% & 0.00\% & 0.00\% \\
+\midrule
+\multicolumn{2}{l}{Overall improvement} &  & 0.00\% & 0.00\% & \textbf{0.00\%} & 0.00\% & 0.00\% & 0.00\% & 0.00\% \\
+\bottomrule
+\end{tabular}%
+}
+\label{tab:results-positive}
+\end{table}
