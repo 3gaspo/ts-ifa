@@ -20,12 +20,14 @@ NEIGHBORS=(10)
 RETRIEVAL_MODE="online"
 SEED=1
 
-EPOCHS=1000
+EPOCHS=10000
 BATCH_SIZE=256
 LR=0.00001
 WEIGHT_DECAY=0.0001
 BETA=0.01
 GAMMA=0.01
+VALID_EVAL_FREQ=1000
+LOGGING_EVAL_FREQ=1000
 
 echo "$(date -Is) job start kind=ts_ifa_training"
 for dataset in "${DATASETS[@]}"; do
@@ -44,6 +46,8 @@ for dataset in "${DATASETS[@]}"; do
           --output-dir "$RUN_DIR/ts_ifa" \
           --epochs "$EPOCHS" \
           --batch-size "$BATCH_SIZE" \
+          --valid-eval-freq "$VALID_EVAL_FREQ" \
+          --logging-eval-freq "$LOGGING_EVAL_FREQ" \
           --lr "$LR" \
           --weight-decay "$WEIGHT_DECAY" \
           --beta "$BETA" \

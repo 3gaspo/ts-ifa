@@ -313,21 +313,44 @@ def save_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def plot_loss_curve(history: list[dict[str, Any]], output_path: Path) -> None:
+def resolve_step_frequency(value: int | None, *, default: int, name: str) -> int:
+    frequency = default if value is None else int(value)
+    if frequency <= 0:
+        raise ValueError(f"{name} must be positive")
+    return frequency
+
+
+def plot_loss_curve(
+    history: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    train_steps: list[dict[str, Any]] | None = None,
+    plot_step_train_loss: bool = False,
+) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    epochs = [row["epoch"] for row in history]
-    train_nmse = [row.get("train_nmse", row.get("train_prediction")) for row in history]
+    if not history:
+        return
+
+    steps = [row.get("step", row["epoch"]) for row in history]
+    train_batch_nmse = [
+        row.get("train_batch_nmse", row.get("train_nmse", row.get("train_prediction")))
+        for row in history
+    ]
     valid_nmse = [row.get("valid_adapted_nmse") for row in history]
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.plot(epochs, train_nmse, label="train batch nMSE", linewidth=2)
+    if plot_step_train_loss and train_steps:
+        step_x = [row["step"] for row in train_steps]
+        step_y = [row.get("train_nmse", row.get("train_prediction")) for row in train_steps]
+        ax.plot(step_x, step_y, label="train step nMSE", linewidth=1, alpha=0.35)
+    ax.plot(steps, train_batch_nmse, marker="o", label="train interval nMSE", linewidth=2)
     if any(value is not None for value in valid_nmse):
-        ax.plot(epochs, valid_nmse, label="T2 validation nMSE", linewidth=2)
-    ax.set_xlabel("Epoch")
+        ax.plot(steps, valid_nmse, marker="o", label="T2 validation nMSE", linewidth=2)
+    ax.set_xlabel("Step")
     ax.set_ylabel("nMSE")
     ax.set_title("TS-IFA training")
     ax.grid(True, alpha=0.3)
@@ -347,6 +370,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=10000)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--eval-batch-size", type=int, default=None)
+    parser.add_argument(
+        "--valid-eval-freq",
+        type=int,
+        default=None,
+        help="Run full T2 validation every N optimizer steps. Defaults to one epoch.",
+    )
+    parser.add_argument(
+        "--logging-eval-freq",
+        type=int,
+        default=None,
+        help="Print the latest train interval and T2 validation metrics every N optimizer steps. Defaults to one epoch.",
+    )
+    parser.add_argument(
+        "--plot-step-train-loss",
+        action="store_true",
+        help="Include noisy per-step train nMSE in training_nmse.pdf. Disabled by default.",
+    )
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--beta", type=float, default=1e-2, help="Penalty toward vanilla prediction")
@@ -367,7 +407,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--residual-hidden", type=int, default=128)
     parser.add_argument("--memory-hidden", type=int, default=128)
     parser.add_argument("--mixture-hidden", type=int, default=128)
-    parser.add_argument("--mixture-key-dim", type=int, default=64)
+    parser.add_argument("--mixture-key-dim", type=int, default=64, help="Deprecated; kept for old launch configs")
     parser.add_argument("--mixture-gate-init", type=float, default=-6.0)
     parser.add_argument("--dropout", type=float, default=0.0)
     return parser.parse_args()
@@ -497,15 +537,38 @@ def main() -> dict[str, Path]:
     )
 
     history: list[dict[str, Any]] = []
+    train_steps: list[dict[str, Any]] = []
     eps = 1e-8
     start_time = perf_counter()
-    log_every = max(1, args.epochs // 20)
-    LOGGER.info("training start")
+    steps_per_epoch = max(1, len(train_loader))
+    total_steps = int(args.epochs) * steps_per_epoch
+    valid_eval_freq = resolve_step_frequency(
+        args.valid_eval_freq,
+        default=steps_per_epoch,
+        name="valid_eval_freq",
+    )
+    logging_eval_freq = resolve_step_frequency(
+        args.logging_eval_freq,
+        default=steps_per_epoch,
+        name="logging_eval_freq",
+    )
+    if logging_eval_freq % valid_eval_freq != 0:
+        raise ValueError("logging_eval_freq must be a multiple of valid_eval_freq")
+    LOGGER.info(
+        "training start epochs=%s steps_per_epoch=%s total_steps=%s valid_eval_freq=%s logging_eval_freq=%s",
+        args.epochs,
+        steps_per_epoch,
+        total_steps,
+        valid_eval_freq,
+        logging_eval_freq,
+    )
+    recent_totals = {"loss": 0.0, "prediction": 0.0, "regularization": 0.0, "residual": 0.0}
+    recent_seen = 0
+    step = 0
     for epoch in range(1, args.epochs + 1):
         model.train()
-        totals = {"loss": 0.0, "prediction": 0.0, "regularization": 0.0, "residual": 0.0}
-        seen = 0
         for raw_cpu in train_loader:
+            step += 1
             raw = move_batch(raw_cpu, device)
             batch, state = prepare_batch(raw, normalization=args.normalization, eps=eps)
             optimizer.zero_grad(set_to_none=True)
@@ -522,33 +585,56 @@ def main() -> dict[str, Path]:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
             batch_size = raw["x"].shape[0]
-            seen += batch_size
-            for key in totals:
-                totals[key] += losses[key].detach().item() * batch_size
+            step_row = {
+                "epoch": epoch,
+                "step": step,
+                **{f"train_{key}": losses[key].detach().item() for key in recent_totals},
+            }
+            step_row["train_nmse"] = step_row["train_prediction"]
+            train_steps.append(step_row)
+            recent_seen += batch_size
+            for key in recent_totals:
+                recent_totals[key] += losses[key].detach().item() * batch_size
 
-        row: dict[str, Any] = {
-            "epoch": epoch,
-            "step": epoch,
-            **{f"train_{key}": value / max(seen, 1) for key, value in totals.items()},
-        }
-        row["train_nmse"] = row["train_prediction"]
-        valid_metrics = evaluate(
-            model,
-            valid_loader,
-            device=device,
-            normalization=args.normalization,
-            eps=eps,
-        )
-        row.update({f"valid_{key}": value for key, value in valid_metrics.items()})
-        history.append(row)
-        if epoch == 1 or epoch == args.epochs or epoch % log_every == 0:
-            LOGGER.info(
-                "training progress epoch=%s/%s train_nmse=%.6f valid_nmse=%.6f",
-                epoch,
-                args.epochs,
-                row["train_nmse"],
-                row["valid_adapted_nmse"],
+            should_valid_eval = step % valid_eval_freq == 0
+            should_logging_eval = step % logging_eval_freq == 0
+            if not (should_valid_eval or should_logging_eval):
+                continue
+
+            row: dict[str, Any] = {
+                "epoch": epoch,
+                "step": step,
+                **{
+                    f"train_batch_{key}": value / max(recent_seen, 1)
+                    for key, value in recent_totals.items()
+                },
+            }
+            row["train_nmse"] = row["train_batch_prediction"]
+            row["train_batch_nmse"] = row["train_batch_prediction"]
+
+            valid_metrics = evaluate(
+                model,
+                valid_loader,
+                device=device,
+                normalization=args.normalization,
+                eps=eps,
             )
+            row.update({f"valid_{key}": value for key, value in valid_metrics.items()})
+
+            if should_logging_eval:
+                LOGGER.info(
+                    "training progress step=%s/%s epoch=%s/%s train_interval_nmse=%.6f valid_nmse=%.6f",
+                    step,
+                    total_steps,
+                    epoch,
+                    args.epochs,
+                    row["train_batch_nmse"],
+                    row["valid_adapted_nmse"],
+                )
+
+            history.append(row)
+            recent_totals = {key: 0.0 for key in recent_totals}
+            recent_seen = 0
     LOGGER.info("training done seconds=%.2f", perf_counter() - start_time)
 
     final_eval = {}
@@ -585,11 +671,14 @@ def main() -> dict[str, Path]:
             "validation_payload": str(oracle_payload_path),
             "eval_payload": str(eval_payload_path) if eval_payload_path else None,
             "epochs": args.epochs,
-            "steps": args.epochs,
+            "steps": total_steps,
+            "steps_per_epoch": steps_per_epoch,
+            "valid_eval_freq": valid_eval_freq,
+            "logging_eval_freq": logging_eval_freq,
         },
         checkpoint_path,
     )
-    save_json(history_path, {"history": history})
+    save_json(history_path, {"history": history, "train_steps": train_steps})
     save_json(metrics_path, final_eval)
     torch.save(
         {
@@ -599,7 +688,12 @@ def main() -> dict[str, Path]:
         },
         predictions_path,
     )
-    plot_loss_curve(history, plot_path)
+    plot_loss_curve(
+        history,
+        plot_path,
+        train_steps=train_steps,
+        plot_step_train_loss=args.plot_step_train_loss,
+    )
     save_json(
         config_path,
         {
@@ -621,6 +715,11 @@ def main() -> dict[str, Path]:
                 "validation_split": "T2",
                 "final_eval_split": "T3",
                 "random_epoch_size": args.batch_size,
+                "steps": total_steps,
+                "steps_per_epoch": steps_per_epoch,
+                "valid_eval_freq": valid_eval_freq,
+                "logging_eval_freq": logging_eval_freq,
+                "plot_step_train_loss": bool(args.plot_step_train_loss),
                 "seconds": perf_counter() - start_time,
             },
         },

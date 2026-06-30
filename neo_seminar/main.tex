@@ -1,0 +1,224 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\mode<presentation>{
+  \usetheme[
+    progressbar=none,
+    titleformat=regular,
+    numbering=fraction
+  ]{metropolis}
+}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+\else
+  \usepackage{fontspec}
+\fi
+\usepackage[sfdefault,light,medium,lining]{FiraSans}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\usepackage[round,authoryear]{natbib}
+\usepackage[capitalise,nameinlink]{cleveref}
+
+\makeatletter
+\setbeamertemplate{headline}{%
+  \begin{beamercolorbox}[colsep=1.5pt]{upper separation line head}
+  \end{beamercolorbox}
+  \begin{beamercolorbox}{section in head/foot}
+    \vskip1pt\insertnavigation{\paperwidth}\vskip1.5pt
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[colsep=1.5pt]{lower separation line head}
+  \end{beamercolorbox}
+}
+\makeatother
+
+\setbeamercolor{section in head/foot}{fg=normal text.bg,bg=structure.fg}
+\setbeamercolor{background canvas}{bg=white}
+\setbeamercovered{again covered={\opaqueness<1->{12}}}
+
+\geometry{left=7mm,right=7mm}
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\textwidth,sep=1.1ex]{footline}%
+    \usebeamerfont{page number in head/foot}%
+    \usebeamertemplate*{frame footer}%
+    \hfill\footnotesize\usebeamertemplate*{frame numbering}~
+  \end{beamercolorbox}%
+}
+
+\definecolor{edf1}{rgb}{0,0.102,0.439}
+\definecolor{edf2}{rgb}{0,0.357,0.733}
+\definecolor{edf3}{rgb}{1,0.627,0.184}
+\definecolor{edf4}{rgb}{0.996,0.345,0.082}
+\definecolor{edf5}{RGB}{196,214,0}
+\definecolor{edf6}{RGB}{80,158,47}
+\definecolor{edf0}{RGB}{16,137,255}
+\definecolor{sage}{RGB}{102,153,102}
+\definecolor{bgcolor}{HTML}{ECF1FC}
+\colorlet{colframe}{mDarkTeal}
+
+\NewDocumentCommand{\ColorBox}{m m +m}{%
+  \begin{tcolorbox}[
+    colback=#1!15!white,
+    colframe=colframe,
+    coltitle=white,
+    title={#2},
+    fonttitle=\scshape,
+    halign title=center,
+    left=1mm,
+    right=1mm,
+    top=1mm,
+    bottom=1mm,
+    boxsep=4pt
+  ]
+    #3
+  \end{tcolorbox}%
+}
+
+\NewDocumentCommand{\Figure}{m m m}{%
+  \begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{#1}
+    \caption{#2}
+    \label{#3}
+  \end{figure}%
+}
+
+\NewDocumentCommand{\Forecasting}{}{%
+  \Figure
+    {Images/time-series/national-load-curves-forecast.pdf}
+    {Individual electricity load}
+    {fig:forecasting}%
+}
+
+\NewDocumentCommand{\PrintBibliography}{}{%
+  \begin{frame}[allowframebreaks]{References}
+    \footnotesize
+    \bibliographystyle{plainnat}
+    \bibliography{references}
+  \end{frame}%
+}
+
+\NewDocumentCommand{\TimeSeriesPanel}{m m}{%
+  \includegraphics[width=0.99\linewidth]{#1}\\[0.05cm]
+  {\footnotesize #2\par}%
+}
+
+\NewDocumentCommand{\TimeSeriesOne}{}{%
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \centering
+      \TimeSeriesPanel
+        {Images/time-series/national-load-curves.pdf}
+        {Aggregated load curve}
+      \vspace{0.2cm}
+      \TimeSeriesPanel
+        {Images/time-series/ecg.pdf}
+        {Heartbeat electrical activity}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \centering
+      \TimeSeriesPanel
+        {Images/time-series/traffic.pdf}
+        {Road occupancy}
+      \vspace{0.2cm}
+      \TimeSeriesPanel
+        {Images/time-series/solar.pdf}
+        {Solar power generation}
+    \end{column}
+  \end{columns}%
+}
+
+\NewDocumentCommand{\TimeSeriesTwo}{}{%
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \centering
+      \TimeSeriesPanel
+        {Images/time-series/national-load-curves-forecast.pdf}
+        {Forecasting}
+      \vspace{0.2cm}
+      \TimeSeriesPanel
+        {Images/time-series/ecg-classification.pdf}
+        {Classification}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \centering
+      \TimeSeriesPanel
+        {Images/time-series/traffic-imputation.pdf}
+        {Imputation}
+      \vspace{0.2cm}
+      \TimeSeriesPanel
+        {Images/time-series/solar-power-anomaly.pdf}
+        {Anomaly detection}
+    \end{column}
+  \end{columns}%
+}
+
+% TeX reads \timeseries1 as the command \timeseries followed by the token 1.
+% The dispatcher therefore supports both \timeseries1 and \timeseries{1}.
+\ExplSyntaxOn
+\NewDocumentCommand{\timeseries}{m}
+  {
+    \str_case:nnF {#1}
+      {
+        {1}{\TimeSeriesOne}
+        {2}{\TimeSeriesTwo}
+      }
+      {
+        \PackageError{csi-proposal}
+          {Unknown~time-series~layout~'#1'}
+          {Use~\string\timeseries1,~\string\timeseries2,~
+           \string\timeseries{1},~or~\string\timeseries{2}.}
+      }
+  }
+\ExplSyntaxOff
+
+\title{Retrieval-Based Residual Adaptation}
+\subtitle{A lightweight proposal for adapting pretrained time-series forecasters}
+\author{Gaspard Berthelier}
+\institute{EDF R\&D / Inria Sophia Antipolis}
+\date{Neo Seminar -- \today}
+
+\NewDocumentCommand{\TitleLogos}{}{%
+  \hfill
+  \begin{minipage}[t]{0.6\textwidth}
+    \raggedleft
+    \includegraphics[height=0.6cm]{Logos/logo-edf.png}%
+    \hspace{0.5cm}%
+    \includegraphics[height=0.6cm]{Logos/logo-inria.png}%
+    \hspace{0.5cm}%
+    \includegraphics[height=0.6cm]{Logos/logo-uca.jpg}
+  \end{minipage}%
+}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \vspace*{0.35cm}
+  \TitleLogos
+
+  \vspace{0.95cm}
+  {\usebeamerfont{title}\inserttitle\par}
+
+  \vspace{0.25cm}
+  {\usebeamerfont{subtitle}\insertsubtitle\par}
+
+  \vspace{0.45cm}
+  {\color{edf4}\rule{\linewidth}{0.4pt}\par}
+
+  \vspace{0.8cm}
+  {\usebeamerfont{author}\insertauthor\par}
+
+  \vspace{0.25cm}
+  {\usebeamerfont{date}\insertdate\par}
+
+  \vspace{0.35cm}
+  {\usebeamerfont{institute}\insertinstitute\par}
+\end{frame}
+
+\input{content}
+
+\end{document}

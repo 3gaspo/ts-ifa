@@ -62,11 +62,11 @@ def main() -> None:
             score = torch.linspace(-1.0, 1.0, len(target))
             baseline_predictions[split] = {
                 "vanilla": target + 1.0,
-                "context_conditioned": target + 0.25,
-                "neighbor_weighted_mean": target + 0.5,
+                "context_forecast": target + 0.25,
+                "horizon_knn_weighted": target + 0.5,
             }
             gate_predictions[split] = {
-                "gated_context_classifier_scalar": target + 0.2,
+                "catboost_context_classifier_scalar": target + 0.2,
                 "oracle_context_scalar": target + 0.1,
             }
             diagnostics_by_split[split] = {
@@ -97,14 +97,14 @@ def main() -> None:
         data = load_dashboard_data(root)
         arrays = split_arrays(data, "eval")
         assert arrays["x"].shape == (6, 4)
-        assert "neighbor_weighted_mean" in prediction_names(data, "eval")
-        assert "gated_context_classifier_scalar" in prediction_names(data, "eval")
+        assert "horizon_knn_weighted" in prediction_names(data, "eval")
+        assert "catboost_context_classifier_scalar" in prediction_names(data, "eval")
         assert "ts_ifa" in prediction_names(data, "eval")
 
         values, _ = horizon_values(
             data,
             "eval",
-            "context_conditioned",
+            "context_forecast",
             "vanilla",
             "relative mse",
             instance_normalized=False,

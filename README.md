@@ -36,7 +36,7 @@ The default chronological ratios are `0.30,0.35,0.15,0.20`:
 
 Retrieval defaults to L2 (`--distance-metric euclidean`) with `--distance-space instance`, which instance-normalizes every time-domain lookback independently. The other spaces are `raw`, for unnormalized lookbacks, and `encoder`, for the loaded forecasting model's representation. Encoder retrieval currently recomputes datastore representations for every query date and is therefore substantially more expensive; raw and instance retrieval do not call the model during neighbor search. Retrieval also defaults to `--retrieval-mode online`. Each query uses its most recent aligned history, capped by default to the number of aligned dates available in T0; this makes online datastore size comparable to fixed mode. `--retrieval-mode fixed` makes T1, T2, and T3 use only T0. `--datastore-stride` controls aligned retrieval datastore density and must be a multiple of `--period` while period alignment is enabled, so all store windows remain in the same phase as the query. `--train-stride`, `--oracle-stride`, and `--eval-stride` separately control T1, T2, and T3 query density. `--min-store-dates`, `--max-store-dates`, and `--max-store-windows` control capacity; `--full-online-history` removes the date cap, while `--store-start-date` and `--store-end-date` bound history explicitly. Query dates that do not satisfy the minimum datastore size are excluded.
 
-The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. These dimensions are lightweight heuristic defaults, not tuned constants; all widths and attention sizes are exposed as CLI options. Its final adaptation wraps the learned mixture proposal in an explicit residual gate from the vanilla forecast, initialized near identity. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
+The default TS-IFA adapter uses three single cross-attention blocks and two-layer MLPs with width 128. These dimensions are lightweight heuristic defaults, not tuned constants; all widths and attention sizes are exposed as CLI options. Its final adaptation learns per-horizon softmax weights over the vanilla forecast, context-conditioned forecast, residual branch, and memory branch. The final logits are initialized to strongly favor the vanilla forecast. Extraction and training logs report total and trainable parameter counts for the loaded forecaster and TS-IFA respectively; the TS-IFA counts are also saved in its checkpoint and `config.json`.
 
 ## Smoke Checks
 
@@ -80,7 +80,7 @@ python -m ts_ifa.experiments.features --input-dir outputs/results/electricity_ch
 Train TS-IFA from extracted payloads:
 
 ```powershell
-python -m ts_ifa.experiments.train_ts_ifa --input-dir outputs/results/electricity_chronos_k5 --epochs 10000 --batch-size 256 --lr 1e-5 --gamma 1e-2 --normalization instance
+python -m ts_ifa.experiments.train_ts_ifa --input-dir outputs/results/electricity_chronos_k5 --epochs 10000 --batch-size 256 --valid-eval-freq 1000 --logging-eval-freq 1000 --lr 1e-5 --gamma 1e-2 --normalization instance
 ```
 
 Evaluate ridge and neighbor baselines from completed payloads:
@@ -102,7 +102,7 @@ for every extracted split. TS-IFA training writes
 artifacts let visualization code inspect trained outputs without refitting models
 or reconstructing experiment splits.
 
-`--fit-baselines-on-eval` additionally fits the three trainable mixtures directly
+`--fit-baselines-on-eval` additionally fits the trainable mixtures directly
 on T3 and reports their in-sample scores with an `_eval_fit` suffix. These are
 optimistic diagnostic bounds, not valid held-out results.
 
@@ -124,8 +124,8 @@ no feature construction, split construction, model fitting, or model inference.
 
 Edit the literal config block near the top of each script, especially
 `DATASETS` and `SETTINGS`, then submit from the repository root. `SHARED_ROOT`
-defaults to `..`, the parent folder that contains both `datasets/` and
-`weights/`; Chronos weights are expected under
+is computed as the absolute parent folder of the repository, which must contain
+both `datasets/` and `weights/`; Chronos weights are expected under
 `${SHARED_ROOT}/weights/chronos2/`. Model results are written under
 `outputs/results/`, while SLURM stdout and stderr are written under
 `script_outputs/`.
@@ -150,6 +150,16 @@ Finally, build the table only after all desired family jobs have completed:
 sbatch ts_ifa/slurm/build_results_table.slurm
 ```
 
+For the current baseline ablation grid, run the combined sweep:
+
+```bash
+sbatch ts_ifa/slurm/baseline_sweep.slurm
+```
+
+It evaluates raw and instance-normalized L2 retrieval with 1, 3, and 10
+neighbors, then writes both `baselines/` and CatBoost `gates/` artifacts for
+each run.
+
 The current scripts run electricity and hourly-summed solar for L-H settings
 168-24 and 672-168. Dataset-specific CSV options are read from
 `${SHARED_ROOT}/datasets/<dataset>/config.json`; electricity drops the
@@ -162,28 +172,33 @@ retrieval payloads. It also evaluates and plots the configured direct models on
 T3. Downstream jobs only read those payloads and write to separate `baselines/`,
 `gates/`, and `ts_ifa/` folders, so they do not overwrite one another.
 
-Baseline mixtures fit on T1. Gates fit on T2 and are evaluated only on T3. Four
-CatBoost gates are reported: binary improvement classifiers and signed
-loss-improvement regressors, each in scalar and horizon-wise form. Classifiers
-use balanced class weights and select context when the predicted improvement
-probability exceeds 0.5. Regressors select context when the predicted
-vanilla-minus-context loss is positive. The scalar models make one decision per
-forecast; horizon-wise models make one decision per forecast step. The two true
-oracles apply the corresponding decisions using T3 targets.
+Baseline mixtures fit on T1. Gates fit on T2 and are evaluated only on T3. Two
+no-feature Bayes gates choose context whenever the T2 average
+vanilla-minus-context loss is positive, either once per forecast or once per
+horizon. Four CatBoost gates are also reported: binary improvement classifiers
+and signed loss-improvement regressors, each in scalar and horizon-wise form.
+Classifiers use balanced class weights and select context when the predicted
+improvement probability exceeds 0.5. Regressors select context when the
+predicted vanilla-minus-context loss is positive. The two true oracles apply the
+corresponding decisions using T3 targets.
 
-All learned gates share the existing retrieval features. Scalar gates receive
+All CatBoost gates share the existing retrieval features. Scalar gates receive
 the signed context-minus-vanilla horizon mean and standard deviation, while
 horizon gates receive the complete signed horizon vector. Both also receive 13
 features covering signed neighbor differences, raw query/neighbor lookback
 moments, same-user ratio, mean neighbor age, neighbor-weight concentration, and
 mean retrieval distance. Ridge inputs are RMS-standardized without centering,
 and their normal equations are averaged over observations so `--l2` has stable
-strength across dataset units and payload sizes. The mix0 ridge coefficient is
-projected to `[0, 1]` with `np.clip`, so the reported mix0 prediction is always
-a convex interpolation between the vanilla forecast and the weighted-neighbor
-forecast.
+strength across dataset units and payload sizes. The `horizon_mix_scalar`
+coefficient is projected to `[0, 1]`, so the reported prediction is always a
+convex interpolation between the vanilla forecast and the weighted-neighbor
+horizon forecast. Residual baselines include the fixed distance-weighted
+residual correction, a clipped scalar residual mix, a global ridge over neighbor
+residuals, and a horizon-wise ridge over neighbor residuals. The full ridge
+baseline uses only the vanilla forecast, the context forecast, and neighbor
+horizons.
 
-Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual-supervision losses in that normalized space. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job trains for 10000 epochs, samples random T1 date/user examples for one optimizer step per epoch, evaluates the full deterministic T2 validation payload every epoch, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`.
+Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual-supervision losses in that normalized space. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job trains for 10000 epochs, samples random T1 date/user examples for one optimizer step per epoch, evaluates full deterministic T2 validation every `--valid-eval-freq` optimizer steps, records the mean T1 optimizer-batch loss over the same interval, logs those train/valid values every `--logging-eval-freq` steps, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`. Per-step train losses are saved in `training_history.json`; the plot hides them by default for TS-IFA, but `--plot-step-train-loss` adds the noisy step-wise curve. The bundled SLURM job sets both frequencies to 1000 steps, giving 10 logged eval points.
 
 The dedicated result job writes five nMSE tables:
 
@@ -193,8 +208,8 @@ The dedicated result job writes five nMSE tables:
   with positive overall improvement over Chronos.
 - `baselines_results.tex`: baseline methods plus the optimistic T3-fitted mixture
   bounds, separated from regular methods and excluded from best-value bolding.
-- `gates_results.tex`: all four learned gates plus the scalar and horizon-wise
-  ground-truth-informed oracles.
+- `gates_results.tex`: no-feature Bayes gates, four CatBoost gates, and the
+  scalar and horizon-wise ground-truth-informed oracles.
 - `ts_ifa_results.tex`: Chronos and TS-IFA.
 
 The result loader combines direct
@@ -202,8 +217,8 @@ The result loader combines direct
 `gate_metrics.json`, and
 `ts_ifa/eval_metrics.json` artifacts. Retrieval-dependent columns are qualified
 by retrieval setting so equally named baselines remain distinct. Table labels
-are shortened by default: for example, `chronos_instance_euclidean_10_online/mix_1_learned`
-is displayed as `IN_L2_10/mix1`, while an explicitly unnormalized run named
+are shortened by default: for example, `chronos_instance_euclidean_10_online/horizon_ridge_shared`
+is displayed as `IN_L2_10/Y-ridge`, while an explicitly unnormalized run named
 `chronos_raw_euclidean_10_fixed` is displayed as `raw_L2_10_fixed`. Run-specific
 `vanilla` columns are hidden by default.
 

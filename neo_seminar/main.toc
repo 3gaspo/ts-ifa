@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{My research}{2}{0}{1}
+\beamer@sectionintoc {2}{Current context}{7}{0}{2}
+\beamer@sectionintoc {3}{Proposal}{18}{0}{3}
+\beamer@sectionintoc {4}{Appendix}{27}{1}{4}

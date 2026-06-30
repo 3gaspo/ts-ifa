@@ -19,9 +19,9 @@ DATASET_ARGS=(
   --dataset-settings solar=168_24,672_168
 )
 
-MAIN_METHODS="chronos,$RUN/context_conditioned,$RUN/neighbor_weighted_mean,$RUN/neighbor_unweighted_mean,$RUN/pred_plus_weighted_e,$RUN/mix_0_weighted,$RUN/mix_1_learned,$RUN/mix_2_full_horizon,$RUN/gated_context_classifier_scalar,$RUN/gated_context_classifier_horizon,$RUN/gated_context_regressor_scalar,$RUN/gated_context_regressor_horizon,$RUN/TS-IFA"
-BASELINE_METHODS="chronos,$RUN/context_conditioned,$RUN/neighbor_weighted_mean,$RUN/neighbor_unweighted_mean,$RUN/pred_plus_weighted_e,$RUN/mix_0_weighted,$RUN/mix_1_learned,$RUN/mix_2_full_horizon,$RUN/mix_0_weighted_eval_fit,$RUN/mix_1_learned_eval_fit,$RUN/mix_2_full_horizon_eval_fit"
-GATE_METHODS="chronos,$RUN/context_conditioned,$RUN/gated_context_classifier_scalar,$RUN/gated_context_classifier_horizon,$RUN/gated_context_regressor_scalar,$RUN/gated_context_regressor_horizon,$RUN/oracle_context_scalar,$RUN/oracle_context_horizon"
+MAIN_METHODS="chronos,$RUN/context_forecast,$RUN/horizon_knn_weighted,$RUN/horizon_knn_mean,$RUN/horizon_mix_scalar,$RUN/horizon_ridge_shared,$RUN/residual_knn_weighted,$RUN/residual_mix_scalar,$RUN/residual_ridge_shared,$RUN/residual_ridge_horizon,$RUN/full_ridge_horizon,$RUN/bayes_context_scalar,$RUN/bayes_context_horizon,$RUN/catboost_context_classifier_scalar,$RUN/catboost_context_classifier_horizon,$RUN/catboost_context_regressor_scalar,$RUN/catboost_context_regressor_horizon,$RUN/TS-IFA"
+BASELINE_METHODS="chronos,$RUN/context_forecast,$RUN/horizon_knn_weighted,$RUN/horizon_knn_mean,$RUN/horizon_mix_scalar,$RUN/horizon_ridge_shared,$RUN/residual_knn_weighted,$RUN/residual_mix_scalar,$RUN/residual_ridge_shared,$RUN/residual_ridge_horizon,$RUN/full_ridge_horizon,$RUN/horizon_mix_scalar_eval_fit,$RUN/horizon_ridge_shared_eval_fit,$RUN/residual_mix_scalar_eval_fit,$RUN/residual_ridge_shared_eval_fit,$RUN/residual_ridge_horizon_eval_fit,$RUN/full_ridge_horizon_eval_fit"
+GATE_METHODS="chronos,$RUN/context_forecast,$RUN/bayes_context_scalar,$RUN/bayes_context_horizon,$RUN/catboost_context_classifier_scalar,$RUN/catboost_context_classifier_horizon,$RUN/catboost_context_regressor_scalar,$RUN/catboost_context_regressor_horizon,$RUN/oracle_context_scalar,$RUN/oracle_context_horizon"
 TS_IFA_METHODS="chronos,$RUN/TS-IFA"
 
 echo "$(date -Is) job start kind=results_tables"
@@ -56,7 +56,7 @@ srun python -m ts_ifa.results_table \
   "${DATASET_ARGS[@]}" \
   --methods "$BASELINE_METHODS" \
   --reference chronos \
-  --exclude-from-bold mix_0_weighted_eval_fit,mix_1_learned_eval_fit,mix_2_full_horizon_eval_fit \
+  --exclude-from-bold horizon_mix_scalar_eval_fit,horizon_ridge_shared_eval_fit,residual_mix_scalar_eval_fit,residual_ridge_shared_eval_fit,residual_ridge_horizon_eval_fit,full_ridge_horizon_eval_fit \
   --caption "Baseline nMSE results and optimistic T3-fitted bounds" \
   --label tab:baselines-results
 

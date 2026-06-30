@@ -114,7 +114,6 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
         self.config = config
         lags = int(config.lags)
         horizon = int(config.horizon)
-        mixture_key_dim = int(config.mixture_key_dim)
 
         self.residual_attention = CrossAttentionBlock(
             query_dim=lags + horizon,
@@ -126,7 +125,7 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             dropout=config.dropout,
         )
         self.residual_head = mlp(
-            horizon,
+            2 * horizon,
             config.residual_hidden,
             horizon,
             dropout=config.dropout,
@@ -148,36 +147,27 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             dropout=config.dropout,
         )
 
-        self.query_mlp = mlp(
-            lags + horizon,
-            config.mixture_hidden,
-            mixture_key_dim,
-            dropout=config.dropout,
-        )
-        self.candidate_mlp = mlp(
-            horizon,
-            config.mixture_hidden,
-            mixture_key_dim,
-            dropout=config.dropout,
-        )
         self.mixture_attention = CrossAttentionBlock(
-            query_dim=mixture_key_dim,
-            key_dim=mixture_key_dim,
-            value_dim=horizon,
-            output_dim=horizon,
+            query_dim=lags,
+            key_dim=lags,
+            value_dim=lags,
+            output_dim=lags,
             heads=config.mixture_heads,
             attn_dim=config.mixture_attn_dim,
             dropout=config.dropout,
         )
-        self.mixture_gate = mlp(
-            lags + 2 * horizon,
+        self.mixture_logits = mlp(
+            lags,
             config.mixture_hidden,
-            horizon,
+            4 * horizon,
             dropout=config.dropout,
         )
-        gate_output = self.mixture_gate[-1]
-        nn.init.zeros_(gate_output.weight)
-        nn.init.constant_(gate_output.bias, float(config.mixture_gate_init))
+        logits_output = self.mixture_logits[-1]
+        nn.init.zeros_(logits_output.weight)
+        with torch.no_grad():
+            logits_output.bias.zero_()
+            logits_bias = logits_output.bias.view(4, horizon)
+            logits_bias[1:].fill_(float(config.mixture_gate_init))
 
     def forward(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = batch["x"]
@@ -192,41 +182,41 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
         m_c, _ = pack([x_c, pred_neighbors], "batch neighbor *")
 
         z_r, residual_weights = self.residual_attention(m, m_c, residual_c)
-        residual_delta = self.residual_head(z_r)
+        residual_input, _ = pack([pred, z_r], "batch *")
+        residual_delta = self.residual_head(residual_input)
         y_r = pred + residual_delta
 
         z_m, memory_weights = self.memory_attention(x, x_c, y_c)
         memory_input, _ = pack([pred, z_m], "batch *")
-        y_m = self.memory_head(memory_input)
+        memory_delta = self.memory_head(memory_input)
+        y_m = pred + memory_delta
 
         candidates = rearrange(
             [pred, pred_context, y_r, y_m],
             "candidate batch horizon -> batch candidate horizon",
         )
-        z_x = self.query_mlp(m)
-        z_y = self.candidate_mlp(
-            rearrange(candidates, "batch candidate horizon -> (batch candidate) horizon")
-        )
-        z_y = rearrange(
-            z_y,
-            "(batch candidate) dim -> batch candidate dim",
+        z_mix, retrieval_mixture_weights = self.mixture_attention(x, x_c, x_c)
+        mixture_logits = rearrange(
+            self.mixture_logits(z_mix),
+            "batch (candidate horizon) -> batch candidate horizon",
             candidate=4,
+            horizon=pred.shape[-1],
         )
-        mixture_candidate, mixture_weights = self.mixture_attention(z_x, z_y, candidates)
-        gate_input, _ = pack([x, pred, mixture_candidate], "batch *")
-        mixture_gate = torch.sigmoid(self.mixture_gate(gate_input))
-        prediction = pred + mixture_gate * (mixture_candidate - pred)
+        mixture_weights = torch.softmax(mixture_logits, dim=1)
+        prediction = (mixture_weights * candidates).sum(dim=1)
 
         return {
             "prediction": prediction,
             "residual_prediction": y_r,
             "memory_prediction": y_m,
-            "mixture_candidate": mixture_candidate,
-            "mixture_gate": mixture_gate,
+            "mixture_candidate": prediction,
+            "mixture_gate": mixture_weights[:, 1:].sum(dim=1),
             "residual_delta": residual_delta,
+            "memory_delta": memory_delta,
             "residual_weights": residual_weights,
             "memory_weights": memory_weights,
             "mixture_weights": mixture_weights,
+            "retrieval_mixture_weights": retrieval_mixture_weights,
         }
 
 

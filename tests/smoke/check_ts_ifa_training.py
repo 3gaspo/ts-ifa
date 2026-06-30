@@ -113,11 +113,22 @@ def check_identity_initialized_mixture() -> None:
         "residual_c": torch.randn(4, 2, 2),
     }
     outputs = model(batch)
-    expected_gate = torch.full_like(outputs["mixture_gate"], torch.sigmoid(torch.tensor(config.mixture_gate_init)))
-    torch.testing.assert_close(outputs["mixture_gate"], expected_gate)
+    expected_logits = torch.zeros_like(outputs["mixture_weights"])
+    expected_logits[:, 1:, :] = config.mixture_gate_init
+    expected_weights = torch.softmax(expected_logits, dim=1)
+    torch.testing.assert_close(outputs["mixture_weights"], expected_weights)
+    torch.testing.assert_close(outputs["memory_prediction"], batch["pred"] + outputs["memory_delta"])
     torch.testing.assert_close(
         outputs["prediction"],
-        batch["pred"] + outputs["mixture_gate"] * (outputs["mixture_candidate"] - batch["pred"]),
+        (outputs["mixture_weights"] * torch.stack(
+            [
+                batch["pred"],
+                batch["pred_context"],
+                outputs["residual_prediction"],
+                outputs["memory_prediction"],
+            ],
+            dim=1,
+        )).sum(dim=1),
     )
 
 
@@ -180,8 +191,11 @@ def run() -> None:
         config = json.loads(paths["config"].read_text(encoding="utf-8"))
         assert config["parameters"]["total"] > 0
         assert config["parameters"]["trainable"] == config["parameters"]["total"]
-        history = json.loads(paths["history"].read_text(encoding="utf-8"))["history"]
+        training_history = json.loads(paths["history"].read_text(encoding="utf-8"))
+        history = training_history["history"]
+        train_steps = training_history["train_steps"]
         assert "valid_adapted_nmse" in history[0]
+        assert "train_nmse" in train_steps[0]
         assert config["training"]["train_split"] == "T1"
         assert config["training"]["validation_split"] == "T2"
     print("TS-IFA training smoke checks passed")

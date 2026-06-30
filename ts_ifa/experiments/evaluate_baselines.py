@@ -134,30 +134,50 @@ def fit_baseline_adapters(train: dict[str, np.ndarray], l2: float) -> dict[str, 
     pred = train["pred"]
     y = train["y"]
     y_c = train["y_c"]
+    e = train["e"]
     pred_c = train["pred_c"]
     if y.shape[0] == 0:
         raise ValueError("cannot fit baseline adapters from an empty train payload")
     weighted = weighted_neighbor_horizon(train)
+    weighted_e = weighted_neighbor_residual(train)
     residual_target = y - pred
 
-    mix0_direction = weighted - pred
+    horizon_mix_direction = weighted - pred
     lam = ridge_no_intercept(
-        rearrange(mix0_direction, "sample horizon -> (sample horizon) 1"),
+        rearrange(horizon_mix_direction, "sample horizon -> (sample horizon) 1"),
         rearrange(residual_target, "sample horizon -> (sample horizon)"),
         l2,
     )[0]
     lam = float(np.clip(lam, 0.0, 1.0))
 
-    mix1_x = np.concatenate([pred[:, :, None], np.moveaxis(y_c, 1, 2)], axis=-1)
-    mix1_coef = ridge_no_intercept(
-        rearrange(mix1_x, "sample horizon feature -> (sample horizon) feature"),
+    residual_lam = ridge_no_intercept(
+        rearrange(weighted_e, "sample horizon -> (sample horizon) 1"),
+        rearrange(residual_target, "sample horizon -> (sample horizon)"),
+        l2,
+    )[0]
+    residual_lam = float(np.clip(residual_lam, 0.0, 1.0))
+
+    residual_ridge_shared_x = np.moveaxis(e, 1, 2)
+    residual_ridge_shared_coef = ridge_no_intercept(
+        rearrange(residual_ridge_shared_x, "sample horizon feature -> (sample horizon) feature"),
+        rearrange(residual_target, "sample horizon -> (sample horizon)"),
+        l2,
+    )
+
+    horizon_ridge_shared_x = np.concatenate([pred[:, :, None], np.moveaxis(y_c, 1, 2)], axis=-1)
+    horizon_ridge_shared_coef = ridge_no_intercept(
+        rearrange(horizon_ridge_shared_x, "sample horizon feature -> (sample horizon) feature"),
         rearrange(residual_target, "sample horizon -> (sample horizon)"),
         l2,
     )
 
     horizon = y.shape[1]
     neighbors = y_c.shape[1]
-    mix2_coef = np.zeros((horizon, neighbors + 2), dtype=np.float64)
+    residual_ridge_horizon_coef = np.zeros((horizon, neighbors), dtype=np.float64)
+    for h in range(horizon):
+        residual_ridge_horizon_coef[h] = ridge_no_intercept(e[:, :, h], residual_target[:, h], l2)
+
+    full_ridge_horizon_coef = np.zeros((horizon, neighbors + 2), dtype=np.float64)
     for h in range(horizon):
         x_h = np.concatenate(
             [
@@ -167,18 +187,22 @@ def fit_baseline_adapters(train: dict[str, np.ndarray], l2: float) -> dict[str, 
             ],
             axis=1,
         )
-        mix2_coef[h] = ridge_no_intercept(x_h, residual_target[:, h], l2)
+        full_ridge_horizon_coef[h] = ridge_no_intercept(x_h, residual_target[:, h], l2)
 
     return {
-        "mix_0_lambda": lam,
-        "mix_1_coef": mix1_coef,
-        "mix_2_coef": mix2_coef,
+        "horizon_mix_scalar_lambda": lam,
+        "residual_mix_scalar_lambda": residual_lam,
+        "residual_ridge_shared_coef": residual_ridge_shared_coef,
+        "residual_ridge_horizon_coef": residual_ridge_horizon_coef,
+        "horizon_ridge_shared_coef": horizon_ridge_shared_coef,
+        "full_ridge_horizon_coef": full_ridge_horizon_coef,
     }
 
 
 def predict_baseline_adapters(arrays: dict[str, np.ndarray], artifacts: dict[str, Any]) -> dict[str, np.ndarray]:
     pred = arrays["pred"]
     y_c = arrays["y_c"]
+    e = arrays["e"]
     pred_c = arrays["pred_c"]
     weighted = weighted_neighbor_horizon(arrays)
     unweighted = y_c.mean(axis=1)
@@ -186,31 +210,49 @@ def predict_baseline_adapters(arrays: dict[str, np.ndarray], artifacts: dict[str
 
     predictions: dict[str, np.ndarray] = {
         "vanilla": pred,
-        "context_conditioned": pred_c,
-        "neighbor_weighted_mean": weighted,
-        "neighbor_unweighted_mean": unweighted,
-        "pred_plus_weighted_e": pred + weighted_e,
-        "mix_0_weighted": (1.0 - artifacts["mix_0_lambda"]) * pred + artifacts["mix_0_lambda"] * weighted,
+        "context_forecast": pred_c,
+        "horizon_knn_weighted": weighted,
+        "horizon_knn_mean": unweighted,
+        "residual_knn_weighted": pred + weighted_e,
+        "horizon_mix_scalar": (
+            (1.0 - artifacts["horizon_mix_scalar_lambda"]) * pred
+            + artifacts["horizon_mix_scalar_lambda"] * weighted
+        ),
+        "residual_mix_scalar": pred + artifacts["residual_mix_scalar_lambda"] * weighted_e,
     }
 
-    mix1_coef = artifacts["mix_1_coef"]
-    mix1_x = np.concatenate([pred[:, :, None], np.moveaxis(y_c, 1, 2)], axis=-1)
-    correction = np.einsum("shf,f->sh", mix1_x, mix1_coef)
-    predictions["mix_1_learned"] = pred + correction
+    residual_ridge_shared_coef = artifacts["residual_ridge_shared_coef"]
+    residual_ridge_shared_x = np.moveaxis(e, 1, 2)
+    residual_correction = np.einsum("shf,f->sh", residual_ridge_shared_x, residual_ridge_shared_coef)
+    predictions["residual_ridge_shared"] = pred + residual_correction
 
-    mix2_coef = artifacts["mix_2_coef"]
+    residual_ridge_horizon_coef = artifacts["residual_ridge_horizon_coef"]
+    residual_full = np.empty_like(pred)
+    for h in range(pred.shape[1]):
+        residual_full[:, h] = pred[:, h] + e[:, :, h] @ residual_ridge_horizon_coef[h]
+    predictions["residual_ridge_horizon"] = residual_full
+
+    horizon_ridge_shared_coef = artifacts["horizon_ridge_shared_coef"]
+    horizon_ridge_shared_x = np.concatenate([pred[:, :, None], np.moveaxis(y_c, 1, 2)], axis=-1)
+    correction = np.einsum("shf,f->sh", horizon_ridge_shared_x, horizon_ridge_shared_coef)
+    predictions["horizon_ridge_shared"] = pred + correction
+
+    full_ridge_horizon_coef = artifacts["full_ridge_horizon_coef"]
     full = np.empty_like(pred)
     for h in range(pred.shape[1]):
         x_h = np.concatenate([pred[:, h : h + 1], y_c[:, :, h], pred_c[:, h : h + 1]], axis=1)
-        full[:, h] = pred[:, h] + x_h @ mix2_coef[h]
-    predictions["mix_2_full_horizon"] = full
+        full[:, h] = pred[:, h] + x_h @ full_ridge_horizon_coef[h]
+    predictions["full_ridge_horizon"] = full
     return predictions
 
 
 TRAINABLE_BASELINES = (
-    "mix_0_weighted",
-    "mix_1_learned",
-    "mix_2_full_horizon",
+    "horizon_mix_scalar",
+    "residual_mix_scalar",
+    "residual_ridge_shared",
+    "residual_ridge_horizon",
+    "horizon_ridge_shared",
+    "full_ridge_horizon",
 )
 
 
@@ -419,6 +461,35 @@ def predict_gate(models: list[dict[str, Any]], features: np.ndarray) -> np.ndarr
     return np.column_stack(columns)
 
 
+def fit_no_feature_context_gates(oracle_arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray | float]:
+    """Bayes-optimal deterministic context decisions with no input features."""
+    base_loss = (oracle_arrays["y"] - oracle_arrays["pred"]) ** 2
+    context_loss = (oracle_arrays["y"] - oracle_arrays["pred_c"]) ** 2
+    improvement = base_loss - context_loss
+    return {
+        "scalar_score": float(improvement.mean()),
+        "horizon_score": improvement.mean(axis=0).astype(np.float64),
+    }
+
+
+def add_no_feature_context_gates(
+    predictions: dict[str, np.ndarray],
+    arrays: dict[str, np.ndarray],
+    artifacts: dict[str, np.ndarray | float],
+) -> dict[str, np.ndarray]:
+    """Apply no-feature scalar and horizon decisions learned from T2."""
+    pred = arrays["pred"]
+    pred_c = arrays["pred_c"]
+    scalar_score = float(artifacts["scalar_score"])
+    horizon_score = np.asarray(artifacts["horizon_score"], dtype=np.float64)
+    predictions["bayes_context_scalar"] = pred_c if scalar_score > 0.0 else pred
+    predictions["bayes_context_horizon"] = np.where(horizon_score[None, :] > 0.0, pred_c, pred)
+    return {
+        "bayes_scalar_score": np.full(pred.shape[0], scalar_score, dtype=np.float64),
+        "bayes_horizon_score": np.repeat(horizon_score[None, :], pred.shape[0], axis=0),
+    }
+
+
 def add_true_context_oracles(
     predictions: dict[str, np.ndarray],
     arrays: dict[str, np.ndarray],
@@ -459,6 +530,7 @@ def add_context_gate_predictions(
         "scalar": scalar_gate_features(oracle_arrays),
         "horizon": horizon_gate_features(oracle_arrays),
     }
+    no_feature_artifacts = fit_no_feature_context_gates(oracle_arrays)
     models: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for objective_index, objective in enumerate(("classifier", "regressor")):
         models[objective] = {}
@@ -488,13 +560,16 @@ def add_context_gate_predictions(
             "horizon": split_base_loss - split_context_loss,
         }
         diagnostics[split] = {}
+        diagnostics[split].update(
+            add_no_feature_context_gates(split_predictions, arrays, no_feature_artifacts)
+        )
         for objective in ("classifier", "regressor"):
             for shape in ("scalar", "horizon"):
                 score = predict_gate(models[objective][shape], split_features[shape])
                 decision = score > 0.0
                 if shape == "scalar":
                     decision = decision[:, :1]
-                name = f"gated_context_{objective}_{shape}"
+                name = f"catboost_context_{objective}_{shape}"
                 split_predictions[name] = np.where(
                     decision,
                     arrays["pred_c"],
@@ -515,6 +590,7 @@ def add_context_gate_predictions(
         "scalar_feature_names": SCALAR_GATE_FEATURE_NAMES,
         "horizon_feature_names": horizon_gate_feature_names(oracle_arrays["y"].shape[1]),
         "models": models,
+        "no_feature": no_feature_artifacts,
     }
     return out, artifacts, diagnostics
 

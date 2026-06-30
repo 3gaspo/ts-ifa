@@ -123,15 +123,20 @@ def main() -> None:
         seed=1,
     )
     assert set(gate_predictions["eval"]) == {
-        "gated_context_classifier_scalar",
-        "gated_context_classifier_horizon",
-        "gated_context_regressor_scalar",
-        "gated_context_regressor_horizon",
+        "bayes_context_scalar",
+        "bayes_context_horizon",
+        "catboost_context_classifier_scalar",
+        "catboost_context_classifier_horizon",
+        "catboost_context_regressor_scalar",
+        "catboost_context_regressor_horizon",
         "oracle_context_scalar",
         "oracle_context_horizon",
     }
     assert set(gate_artifacts["models"]) == {"classifier", "regressor"}
+    assert set(gate_artifacts["no_feature"]) == {"scalar_score", "horizon_score"}
     assert set(gate_diagnostics["eval"]) == {
+        "bayes_scalar_score",
+        "bayes_horizon_score",
         "classifier_scalar_score",
         "classifier_scalar_target",
         "classifier_horizon_score",
@@ -149,11 +154,21 @@ def main() -> None:
         l2=1e-3,
     )
     assert set(baseline_predictions["eval"]) == {
-        "mix_0_weighted_eval_fit",
-        "mix_1_learned_eval_fit",
-        "mix_2_full_horizon_eval_fit",
+        "horizon_mix_scalar_eval_fit",
+        "residual_mix_scalar_eval_fit",
+        "residual_ridge_shared_eval_fit",
+        "residual_ridge_horizon_eval_fit",
+        "horizon_ridge_shared_eval_fit",
+        "full_ridge_horizon_eval_fit",
     }
-    assert set(eval_fit_artifacts) == {"mix_0_lambda", "mix_1_coef", "mix_2_coef"}
+    assert set(eval_fit_artifacts) == {
+        "horizon_mix_scalar_lambda",
+        "residual_mix_scalar_lambda",
+        "residual_ridge_shared_coef",
+        "residual_ridge_horizon_coef",
+        "horizon_ridge_shared_coef",
+        "full_ridge_horizon_coef",
+    }
 
     gate_x = np.asarray([[0.0], [0.1], [0.9], [1.0]], dtype=np.float32)
     gate_y = np.asarray([[-4.0], [-1.0], [1.0], [4.0]], dtype=np.float32)

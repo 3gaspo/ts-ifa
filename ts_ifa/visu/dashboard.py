@@ -98,7 +98,7 @@ def split_arrays(data: dict[str, Any], split: str) -> dict[str, Any]:
     }
     predictions = {
         "vanilla": _flatten(payload[prefix + "preds"]),
-        "context_conditioned": _flatten(payload[prefix + "preds_context"]),
+        "context_forecast": _flatten(payload[prefix + "preds_context"]),
     }
     baseline_split = data["baseline"].get("splits", {}).get(split, {})
     for name, value in baseline_split.get("predictions", {}).items():
