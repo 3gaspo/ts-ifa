@@ -150,6 +150,14 @@ Finally, build the table only after all desired family jobs have completed:
 sbatch ts_ifa/slurm/build_results_table.slurm
 ```
 
+To build the retrieval-sweep tables used for the seminar format, select
+`DATASETS`, `SETTINGS`, `DISTANCE_SPACES`, and `NEIGHBORS` in the script, then
+run:
+
+```bash
+sbatch ts_ifa/slurm/build_sweep_results_table.slurm
+```
+
 For the current baseline ablation grid, run the combined sweep:
 
 ```bash
@@ -211,6 +219,16 @@ The dedicated result job writes five nMSE tables:
 - `gates_results.tex`: no-feature Bayes gates, four CatBoost gates, and the
   scalar and horizon-wise ground-truth-informed oracles.
 - `ts_ifa_results.tex`: Chronos and TS-IFA.
+
+The sweep result job writes three nMSE files under
+`outputs/results/sweep_tables/`: `baselines_results.tex`,
+`gates_results.tex`, and `ts_ifa_results.tex`. Each file contains two table
+formats: the regular dataset/setting rows with model columns, and a
+seminar-style matrix with models as rows and retrieval settings
+(`space_metric_K`) as columns. Matrix cells are average nMSE values over the
+selected datasets and L-H settings, shown with two decimals and the best value
+among eligible held-out methods in the whole matrix in bold. Diagnostic T3-fit
+and oracle rows are displayed but not eligible for that bold marker.
 
 The result loader combines direct
 `univariate_summary.json`, adapter `baseline_metrics.json`, gate
