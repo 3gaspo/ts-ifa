@@ -15,8 +15,8 @@ OUT_ROOT="outputs/results"
 
 DATASETS=("electricity" "solar")
 SETTINGS=("168 24" "672 168")
-DISTANCE_SPACES=("instance") # raw instance encoder
-NEIGHBORS=(10)
+DISTANCE_SPACES=("raw" "instance") # raw instance encoder
+NEIGHBORS=(1 3 10)
 RETRIEVAL_MODE="online"
 SEED=1
 

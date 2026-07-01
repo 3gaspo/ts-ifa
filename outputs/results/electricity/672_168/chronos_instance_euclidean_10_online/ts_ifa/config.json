@@ -18,8 +18,8 @@
     "dropout": 0.0
   },
   "parameters": {
-    "total": 1535984,
-    "trainable": 1535984
+    "total": 1718880,
+    "trainable": 1718880
   },
   "training": {
     "optimizer": "AdamW",
@@ -33,6 +33,11 @@
     "validation_split": "T2",
     "final_eval_split": "T3",
     "random_epoch_size": 256,
-    "seconds": 13717.24961315468
+    "steps": 10000,
+    "steps_per_epoch": 1,
+    "valid_eval_freq": 1000,
+    "logging_eval_freq": 1000,
+    "plot_step_train_loss": false,
+    "seconds": 179.2844482138753
   }
 }

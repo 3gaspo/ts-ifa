@@ -1,0 +1,8 @@
+2026-07-01T09:23:10+02:00 job start kind=sweep_results_tables datasets=electricity,solar settings=168_24,672_168 spaces=raw,instance neighbors=1,3,10 mode=online
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/baselines_results.tex
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/gates_results.tex
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/ts_ifa_results.tex
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/baselines_results.tex
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/gates_results.tex
+LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/sweep_tables/ts_ifa_results.tex
+2026-07-01T09:23:16+02:00 job done kind=sweep_results_tables output=outputs/results/sweep_tables

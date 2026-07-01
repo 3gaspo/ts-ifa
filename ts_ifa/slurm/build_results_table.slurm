@@ -15,8 +15,8 @@ OUT_ROOT="outputs/results"
 RUN="chronos_instance_euclidean_10_online"
 DATASET_ARGS=(
   --datasets electricity,solar
-  --dataset-settings electricity=168_24,672_168
-  --dataset-settings solar=168_24,672_168
+  --dataset-settings electricity=168_24 #,672_168
+  --dataset-settings solar=168_24 #,672_168
 )
 
 MAIN_METHODS="chronos,$RUN/context_forecast,$RUN/horizon_knn_weighted,$RUN/horizon_knn_mean,$RUN/horizon_mix_scalar,$RUN/horizon_ridge_shared,$RUN/residual_knn_weighted,$RUN/residual_mix_scalar,$RUN/residual_ridge_shared,$RUN/residual_ridge_horizon,$RUN/full_ridge_horizon,$RUN/bayes_context_scalar,$RUN/bayes_context_horizon,$RUN/catboost_context_classifier_scalar,$RUN/catboost_context_classifier_horizon,$RUN/catboost_context_regressor_scalar,$RUN/catboost_context_regressor_horizon,$RUN/TS-IFA"

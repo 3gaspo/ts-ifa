@@ -1,4 +1,4 @@
-2026-06-27T11:35:47+02:00 job start kind=results_tables
+2026-07-01T00:57:45+02:00 job start kind=results_tables
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/results.tex
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/results.tex
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/results_positive.tex
@@ -9,4 +9,4 @@ LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/gates_results.t
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/gates_results.tex
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/ts_ifa_results.tex
 LaTeX table written to /home/h61084/codes/ts-ifa/outputs/results/ts_ifa_results.tex
-2026-06-27T11:36:10+02:00 job done kind=results_tables output=outputs/results
+2026-07-01T00:58:11+02:00 job done kind=results_tables output=outputs/results

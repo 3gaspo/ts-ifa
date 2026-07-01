@@ -1,0 +1,650 @@
+2026-07-01T10:37:47+02:00 job start kind=ts_ifa_training
+2026-07-01T10:37:47+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_1_online
+2026-07-01 10:37:50,241 INFO [__main__] ========================================================================
+2026-07-01 10:37:50,485 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_raw_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 10:37:50,485 INFO [__main__] payload load start
+2026-07-01 10:37:56,880 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:37:56,949 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:37:56,977 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:37:56,985 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:37:57,195 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:37:57,195 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:38:09,732 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.303275 valid_nmse=0.296452
+2026-07-01 10:38:21,834 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.298003 valid_nmse=0.296762
+2026-07-01 10:38:33,927 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.312935 valid_nmse=0.297014
+2026-07-01 10:38:45,986 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.277263 valid_nmse=0.297170
+2026-07-01 10:38:58,029 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.273689 valid_nmse=0.297248
+2026-07-01 10:39:10,035 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.288200 valid_nmse=0.298665
+2026-07-01 10:39:22,090 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.350492 valid_nmse=0.298317
+2026-07-01 10:39:34,068 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.277796 valid_nmse=0.297296
+2026-07-01 10:39:46,024 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.295723 valid_nmse=0.298727
+2026-07-01 10:39:58,039 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.247126 valid_nmse=0.298362
+2026-07-01 10:39:58,039 INFO [__main__] training done seconds=120.84
+2026-07-01 10:39:58,039 INFO [__main__] evaluation start
+2026-07-01 10:39:58,341 INFO [__main__] evaluation done adapted_nmse=0.166490
+2026-07-01 10:39:59,284 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_raw_euclidean_1_online/ts_ifa
+2026-07-01 10:39:59,284 INFO [__main__] experiment done seconds=129.04
+2026-07-01 10:39:59,284 INFO [__main__] ========================================================================
+2026-07-01T10:39:59+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_1_online
+2026-07-01T10:39:59+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_3_online
+2026-07-01 10:40:02,873 INFO [__main__] ========================================================================
+2026-07-01 10:40:03,169 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_raw_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 10:40:03,169 INFO [__main__] payload load start
+2026-07-01 10:40:13,158 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:40:13,227 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:40:13,255 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:40:13,263 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:40:13,443 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:40:13,443 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:40:26,270 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.302400 valid_nmse=0.296854
+2026-07-01 10:40:38,897 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.296654 valid_nmse=0.297225
+2026-07-01 10:40:51,381 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.311659 valid_nmse=0.297313
+2026-07-01 10:41:03,887 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.275820 valid_nmse=0.297802
+2026-07-01 10:41:16,259 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.272546 valid_nmse=0.297790
+2026-07-01 10:41:28,709 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.287021 valid_nmse=0.299056
+2026-07-01 10:41:41,178 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.349009 valid_nmse=0.298789
+2026-07-01 10:41:53,583 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.276379 valid_nmse=0.298305
+2026-07-01 10:42:06,001 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.294078 valid_nmse=0.300127
+2026-07-01 10:42:18,395 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.245575 valid_nmse=0.299566
+2026-07-01 10:42:18,395 INFO [__main__] training done seconds=124.95
+2026-07-01 10:42:18,395 INFO [__main__] evaluation start
+2026-07-01 10:42:18,711 INFO [__main__] evaluation done adapted_nmse=0.166861
+2026-07-01 10:42:19,593 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_raw_euclidean_3_online/ts_ifa
+2026-07-01 10:42:19,593 INFO [__main__] experiment done seconds=136.72
+2026-07-01 10:42:19,593 INFO [__main__] ========================================================================
+2026-07-01T10:42:20+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_3_online
+2026-07-01T10:42:20+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_10_online
+2026-07-01 10:42:23,184 INFO [__main__] ========================================================================
+2026-07-01 10:42:23,406 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_raw_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 10:42:23,406 INFO [__main__] payload load start
+2026-07-01 10:42:44,351 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:42:44,419 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:42:44,448 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:42:44,455 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:42:44,682 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:42:44,682 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:42:58,242 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.301591 valid_nmse=0.297098
+2026-07-01 10:43:11,656 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.294834 valid_nmse=0.297015
+2026-07-01 10:43:24,918 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.310925 valid_nmse=0.297204
+2026-07-01 10:43:38,305 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.274784 valid_nmse=0.297441
+2026-07-01 10:43:51,422 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.271684 valid_nmse=0.297406
+2026-07-01 10:44:04,611 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.286081 valid_nmse=0.298206
+2026-07-01 10:44:17,682 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.348285 valid_nmse=0.297731
+2026-07-01 10:44:30,872 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.275555 valid_nmse=0.297529
+2026-07-01 10:44:43,994 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.293281 valid_nmse=0.298370
+2026-07-01 10:44:57,190 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.245096 valid_nmse=0.298537
+2026-07-01 10:44:57,190 INFO [__main__] training done seconds=132.51
+2026-07-01 10:44:57,190 INFO [__main__] evaluation start
+2026-07-01 10:44:57,539 INFO [__main__] evaluation done adapted_nmse=0.165627
+2026-07-01 10:44:58,429 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_raw_euclidean_10_online/ts_ifa
+2026-07-01 10:44:58,429 INFO [__main__] experiment done seconds=155.24
+2026-07-01 10:44:58,429 INFO [__main__] ========================================================================
+2026-07-01T10:44:59+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_raw_euclidean_10_online
+2026-07-01T10:44:59+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_1_online
+2026-07-01 10:45:02,288 INFO [__main__] ========================================================================
+2026-07-01 10:45:02,497 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_instance_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 10:45:02,497 INFO [__main__] payload load start
+2026-07-01 10:45:08,024 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:45:08,097 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:45:08,125 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:45:08,134 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:45:08,334 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:45:08,334 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:45:20,732 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.303414 valid_nmse=0.291897
+2026-07-01 10:45:32,781 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.297357 valid_nmse=0.291895
+2026-07-01 10:45:44,749 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.313622 valid_nmse=0.292200
+2026-07-01 10:45:56,774 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.277733 valid_nmse=0.292094
+2026-07-01 10:46:08,768 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.274187 valid_nmse=0.292473
+2026-07-01 10:46:20,824 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.289569 valid_nmse=0.293545
+2026-07-01 10:46:32,831 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.351486 valid_nmse=0.293458
+2026-07-01 10:46:44,843 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.278596 valid_nmse=0.292536
+2026-07-01 10:46:56,725 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.296137 valid_nmse=0.293286
+2026-07-01 10:47:08,756 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.248180 valid_nmse=0.293798
+2026-07-01 10:47:08,756 INFO [__main__] training done seconds=120.42
+2026-07-01 10:47:08,757 INFO [__main__] evaluation start
+2026-07-01 10:47:09,058 INFO [__main__] evaluation done adapted_nmse=0.166263
+2026-07-01 10:47:10,151 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_instance_euclidean_1_online/ts_ifa
+2026-07-01 10:47:10,151 INFO [__main__] experiment done seconds=127.86
+2026-07-01 10:47:10,151 INFO [__main__] ========================================================================
+2026-07-01T10:47:10+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_1_online
+2026-07-01T10:47:10+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_3_online
+2026-07-01 10:47:14,422 INFO [__main__] ========================================================================
+2026-07-01 10:47:14,680 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_instance_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 10:47:14,680 INFO [__main__] payload load start
+2026-07-01 10:47:25,022 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:47:25,090 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:47:25,119 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:47:25,127 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:47:25,347 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:47:25,347 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:47:38,214 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.301952 valid_nmse=0.292097
+2026-07-01 10:47:50,773 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.295849 valid_nmse=0.291642
+2026-07-01 10:48:03,295 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.312088 valid_nmse=0.291943
+2026-07-01 10:48:15,833 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.276404 valid_nmse=0.291924
+2026-07-01 10:48:28,338 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.272842 valid_nmse=0.291390
+2026-07-01 10:48:40,742 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.287945 valid_nmse=0.292563
+2026-07-01 10:48:53,177 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.350242 valid_nmse=0.292392
+2026-07-01 10:49:05,529 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.277016 valid_nmse=0.292033
+2026-07-01 10:49:17,909 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.294942 valid_nmse=0.292872
+2026-07-01 10:49:30,299 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.246710 valid_nmse=0.292440
+2026-07-01 10:49:30,299 INFO [__main__] training done seconds=124.95
+2026-07-01 10:49:30,299 INFO [__main__] evaluation start
+2026-07-01 10:49:30,614 INFO [__main__] evaluation done adapted_nmse=0.165926
+2026-07-01 10:49:31,886 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_instance_euclidean_3_online/ts_ifa
+2026-07-01 10:49:31,886 INFO [__main__] experiment done seconds=137.46
+2026-07-01 10:49:31,886 INFO [__main__] ========================================================================
+2026-07-01T10:49:32+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_3_online
+2026-07-01T10:49:32+02:00 training start dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-07-01 10:49:36,425 INFO [__main__] ========================================================================
+2026-07-01 10:49:36,657 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 10:49:36,657 INFO [__main__] payload load start
+2026-07-01 10:49:46,745 INFO [__main__] payload load done train_samples=117688 valid_samples=49141 eval_samples=12520
+2026-07-01 10:49:46,814 INFO [__main__] payload scale split=train samples=117688 std_min=0.185577 std_q001=0.49727 std_q01=4.3628 std_q05=21.1115 std_q10=38.6169 std_median=182.732 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:49:46,842 INFO [__main__] payload scale split=valid samples=49141 std_min=0.304911 std_q001=0.467337 std_q01=3.79746 std_q05=22.6029 std_q10=41.7681 std_median=179.756 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:49:46,850 INFO [__main__] payload scale split=eval samples=12520 std_min=0.361678 std_q001=0.652083 std_q01=5.07391 std_q05=19.9891 std_q10=36.431 std_median=182.37 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:49:47,065 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 10:49:47,065 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:50:00,902 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.301027 valid_nmse=0.289944
+2026-07-01 10:50:14,182 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.294712 valid_nmse=0.289703
+2026-07-01 10:50:27,517 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.311058 valid_nmse=0.290120
+2026-07-01 10:50:40,904 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.275578 valid_nmse=0.290157
+2026-07-01 10:50:54,475 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.272144 valid_nmse=0.289730
+2026-07-01 10:51:07,804 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.287168 valid_nmse=0.290640
+2026-07-01 10:51:21,273 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.349284 valid_nmse=0.290505
+2026-07-01 10:51:34,515 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.276226 valid_nmse=0.290484
+2026-07-01 10:51:47,692 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.294117 valid_nmse=0.291581
+2026-07-01 10:52:00,884 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.245721 valid_nmse=0.290968
+2026-07-01 10:52:00,884 INFO [__main__] training done seconds=133.82
+2026-07-01 10:52:00,884 INFO [__main__] evaluation start
+2026-07-01 10:52:01,231 INFO [__main__] evaluation done adapted_nmse=0.165597
+2026-07-01 10:52:02,293 INFO [__main__] outputs saved dir=outputs/results/electricity/168_24/chronos_instance_euclidean_10_online/ts_ifa
+2026-07-01 10:52:02,293 INFO [__main__] experiment done seconds=145.87
+2026-07-01 10:52:02,293 INFO [__main__] ========================================================================
+2026-07-01T10:52:03+02:00 training done dataset=electricity lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-07-01T10:52:03+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_1_online
+2026-07-01 10:52:06,623 INFO [__main__] ========================================================================
+2026-07-01 10:52:06,889 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_raw_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 10:52:06,889 INFO [__main__] payload load start
+2026-07-01 10:52:24,812 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 10:52:25,020 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:52:25,098 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:52:25,119 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:52:25,351 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 10:52:25,351 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:52:38,382 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251917 valid_nmse=0.227267
+2026-07-01 10:52:51,065 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.240679 valid_nmse=0.226847
+2026-07-01 10:53:03,752 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.248828 valid_nmse=0.227012
+2026-07-01 10:53:16,286 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.250901 valid_nmse=0.227641
+2026-07-01 10:53:28,753 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.243980 valid_nmse=0.228336
+2026-07-01 10:53:41,226 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.249270 valid_nmse=0.228991
+2026-07-01 10:53:53,776 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.227942 valid_nmse=0.229559
+2026-07-01 10:54:06,479 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.238562 valid_nmse=0.230762
+2026-07-01 10:54:19,174 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.219318 valid_nmse=0.230201
+2026-07-01 10:54:31,845 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.227156 valid_nmse=0.231487
+2026-07-01 10:54:31,845 INFO [__main__] training done seconds=126.49
+2026-07-01 10:54:31,845 INFO [__main__] evaluation start
+2026-07-01 10:54:32,088 INFO [__main__] evaluation done adapted_nmse=0.242692
+2026-07-01 10:54:33,234 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_raw_euclidean_1_online/ts_ifa
+2026-07-01 10:54:33,234 INFO [__main__] experiment done seconds=146.61
+2026-07-01 10:54:33,234 INFO [__main__] ========================================================================
+2026-07-01T10:54:34+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_1_online
+2026-07-01T10:54:34+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_3_online
+2026-07-01 10:54:37,640 INFO [__main__] ========================================================================
+2026-07-01 10:54:37,863 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_raw_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 10:54:37,863 INFO [__main__] payload load start
+2026-07-01 10:55:13,184 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 10:55:13,393 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:55:13,471 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:55:13,492 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:55:13,679 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 10:55:13,679 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:55:27,912 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251883 valid_nmse=0.227271
+2026-07-01 10:55:42,163 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.240210 valid_nmse=0.227024
+2026-07-01 10:55:56,025 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.247473 valid_nmse=0.227150
+2026-07-01 10:56:09,923 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.247914 valid_nmse=0.228158
+2026-07-01 10:56:23,872 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.238940 valid_nmse=0.228956
+2026-07-01 10:56:37,731 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.243580 valid_nmse=0.229568
+2026-07-01 10:56:51,871 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.220099 valid_nmse=0.230155
+2026-07-01 10:57:05,739 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.228158 valid_nmse=0.231060
+2026-07-01 10:57:19,713 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.208803 valid_nmse=0.230358
+2026-07-01 10:57:33,818 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.215446 valid_nmse=0.230576
+2026-07-01 10:57:33,819 INFO [__main__] training done seconds=140.14
+2026-07-01 10:57:33,819 INFO [__main__] evaluation start
+2026-07-01 10:57:34,113 INFO [__main__] evaluation done adapted_nmse=0.248935
+2026-07-01 10:57:35,214 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_raw_euclidean_3_online/ts_ifa
+2026-07-01 10:57:35,214 INFO [__main__] experiment done seconds=177.57
+2026-07-01 10:57:35,214 INFO [__main__] ========================================================================
+2026-07-01T10:57:36+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_3_online
+2026-07-01T10:57:36+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_10_online
+2026-07-01 10:57:39,668 INFO [__main__] ========================================================================
+2026-07-01 10:57:39,895 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_raw_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 10:57:39,896 INFO [__main__] payload load start
+2026-07-01 10:59:04,234 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 10:59:04,477 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:59:04,555 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:59:04,576 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 10:59:04,777 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 10:59:04,777 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 10:59:22,920 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251745 valid_nmse=0.227328
+2026-07-01 10:59:40,587 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.238869 valid_nmse=0.227035
+2026-07-01 10:59:58,056 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.245213 valid_nmse=0.227132
+2026-07-01 11:00:15,835 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.244088 valid_nmse=0.228772
+2026-07-01 11:00:33,285 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.234823 valid_nmse=0.229241
+2026-07-01 11:00:50,261 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.238501 valid_nmse=0.230727
+2026-07-01 11:01:07,321 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.214138 valid_nmse=0.230348
+2026-07-01 11:01:23,930 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.221760 valid_nmse=0.234351
+2026-07-01 11:01:41,073 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.202567 valid_nmse=0.235357
+2026-07-01 11:01:58,040 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.208155 valid_nmse=0.237410
+2026-07-01 11:01:58,040 INFO [__main__] training done seconds=173.26
+2026-07-01 11:01:58,040 INFO [__main__] evaluation start
+2026-07-01 11:01:58,585 INFO [__main__] evaluation done adapted_nmse=0.241918
+2026-07-01 11:01:59,776 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_raw_euclidean_10_online/ts_ifa
+2026-07-01 11:01:59,776 INFO [__main__] experiment done seconds=260.11
+2026-07-01 11:01:59,776 INFO [__main__] ========================================================================
+2026-07-01T11:02:00+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_raw_euclidean_10_online
+2026-07-01T11:02:00+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_1_online
+2026-07-01 11:02:04,654 INFO [__main__] ========================================================================
+2026-07-01 11:02:04,918 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_instance_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 11:02:04,918 INFO [__main__] payload load start
+2026-07-01 11:02:24,537 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 11:02:24,767 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:02:24,845 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:02:24,867 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:02:25,101 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:02:25,101 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:02:38,155 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251900 valid_nmse=0.227030
+2026-07-01 11:02:50,969 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.240284 valid_nmse=0.226908
+2026-07-01 11:03:03,556 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.249076 valid_nmse=0.227257
+2026-07-01 11:03:16,335 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.251457 valid_nmse=0.227911
+2026-07-01 11:03:29,113 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.245061 valid_nmse=0.228199
+2026-07-01 11:03:41,753 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.251165 valid_nmse=0.228402
+2026-07-01 11:03:54,380 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.230513 valid_nmse=0.228661
+2026-07-01 11:04:07,076 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.242844 valid_nmse=0.228627
+2026-07-01 11:04:19,558 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.223643 valid_nmse=0.228601
+2026-07-01 11:04:32,147 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.235239 valid_nmse=0.229077
+2026-07-01 11:04:32,147 INFO [__main__] training done seconds=127.05
+2026-07-01 11:04:32,147 INFO [__main__] evaluation start
+2026-07-01 11:04:32,390 INFO [__main__] evaluation done adapted_nmse=0.255350
+2026-07-01 11:04:33,660 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_instance_euclidean_1_online/ts_ifa
+2026-07-01 11:04:33,661 INFO [__main__] experiment done seconds=149.01
+2026-07-01 11:04:33,661 INFO [__main__] ========================================================================
+2026-07-01T11:04:34+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_1_online
+2026-07-01T11:04:34+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_3_online
+2026-07-01 11:04:37,790 INFO [__main__] ========================================================================
+2026-07-01 11:04:38,037 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_instance_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 11:04:38,037 INFO [__main__] payload load start
+2026-07-01 11:05:08,183 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 11:05:08,427 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:05:08,504 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:05:08,526 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:05:08,734 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:05:08,734 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:05:23,008 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251763 valid_nmse=0.227109
+2026-07-01 11:05:37,050 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.239717 valid_nmse=0.226892
+2026-07-01 11:05:50,816 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.247484 valid_nmse=0.227246
+2026-07-01 11:06:04,802 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.248124 valid_nmse=0.228274
+2026-07-01 11:06:18,557 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.240317 valid_nmse=0.228526
+2026-07-01 11:06:32,271 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.245517 valid_nmse=0.228897
+2026-07-01 11:06:46,015 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.223509 valid_nmse=0.228665
+2026-07-01 11:06:59,948 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.232220 valid_nmse=0.228724
+2026-07-01 11:07:13,776 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.213639 valid_nmse=0.228540
+2026-07-01 11:07:27,637 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.221499 valid_nmse=0.228241
+2026-07-01 11:07:27,637 INFO [__main__] training done seconds=138.90
+2026-07-01 11:07:27,637 INFO [__main__] evaluation start
+2026-07-01 11:07:27,935 INFO [__main__] evaluation done adapted_nmse=0.242963
+2026-07-01 11:07:29,144 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_instance_euclidean_3_online/ts_ifa
+2026-07-01 11:07:29,144 INFO [__main__] experiment done seconds=171.35
+2026-07-01 11:07:29,144 INFO [__main__] ========================================================================
+2026-07-01T11:07:29+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_3_online
+2026-07-01T11:07:29+02:00 training start dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-07-01 11:07:33,499 INFO [__main__] ========================================================================
+2026-07-01 11:07:33,731 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 11:07:33,732 INFO [__main__] payload load start
+2026-07-01 11:08:06,376 INFO [__main__] payload load done train_samples=109237 valid_samples=40690 eval_samples=10955
+2026-07-01 11:08:06,585 INFO [__main__] payload scale split=train samples=109237 std_min=0.464705 std_q001=0.722524 std_q01=5.8194 std_q05=23.0583 std_q10=40.0592 std_median=185.98 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:08:06,663 INFO [__main__] payload scale split=valid samples=40690 std_min=0.475362 std_q001=0.663909 std_q01=4.18389 std_q05=24.1273 std_q10=43.6267 std_median=182.355 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:08:06,685 INFO [__main__] payload scale split=eval samples=10955 std_min=0.526355 std_q001=1.32202 std_q01=6.67051 std_q05=20.982 std_q10=37.4481 std_median=187.956 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:08:06,918 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:08:06,918 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:08:24,910 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.251634 valid_nmse=0.227011
+2026-07-01 11:08:43,609 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.238599 valid_nmse=0.226812
+2026-07-01 11:09:01,617 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.245050 valid_nmse=0.226939
+2026-07-01 11:09:19,207 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.244403 valid_nmse=0.227920
+2026-07-01 11:09:36,588 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.236056 valid_nmse=0.228158
+2026-07-01 11:09:54,318 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.241173 valid_nmse=0.228285
+2026-07-01 11:10:12,234 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.218599 valid_nmse=0.228148
+2026-07-01 11:10:29,705 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.226857 valid_nmse=0.228546
+2026-07-01 11:10:46,908 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.209141 valid_nmse=0.228766
+2026-07-01 11:11:04,516 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.215237 valid_nmse=0.228337
+2026-07-01 11:11:04,516 INFO [__main__] training done seconds=177.60
+2026-07-01 11:11:04,516 INFO [__main__] evaluation start
+2026-07-01 11:11:04,947 INFO [__main__] evaluation done adapted_nmse=0.237609
+2026-07-01 11:11:06,423 INFO [__main__] outputs saved dir=outputs/results/electricity/672_168/chronos_instance_euclidean_10_online/ts_ifa
+2026-07-01 11:11:06,423 INFO [__main__] experiment done seconds=212.92
+2026-07-01 11:11:06,423 INFO [__main__] ========================================================================
+2026-07-01T11:11:07+02:00 training done dataset=electricity lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-07-01T11:11:07+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_1_online
+2026-07-01 11:11:10,727 INFO [__main__] ========================================================================
+2026-07-01 11:11:11,009 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_raw_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 11:11:11,009 INFO [__main__] payload load start
+2026-07-01 11:11:13,865 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:11:13,876 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:11:13,880 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:11:13,881 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:11:14,070 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:11:14,071 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:11:25,480 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092941 valid_nmse=0.165703
+2026-07-01 11:11:36,494 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.081679 valid_nmse=0.165712
+2026-07-01 11:11:47,534 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.075697 valid_nmse=0.165726
+2026-07-01 11:11:58,608 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.072767 valid_nmse=0.165733
+2026-07-01 11:12:09,578 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.070616 valid_nmse=0.165742
+2026-07-01 11:12:20,537 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.068462 valid_nmse=0.165742
+2026-07-01 11:12:31,610 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.066493 valid_nmse=0.165739
+2026-07-01 11:12:42,549 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.064769 valid_nmse=0.165733
+2026-07-01 11:12:53,614 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.062496 valid_nmse=0.165723
+2026-07-01 11:13:04,679 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.061154 valid_nmse=0.165715
+2026-07-01 11:13:04,679 INFO [__main__] training done seconds=110.61
+2026-07-01 11:13:04,679 INFO [__main__] evaluation start
+2026-07-01 11:13:04,711 INFO [__main__] evaluation done adapted_nmse=0.321607
+2026-07-01 11:13:05,711 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_raw_euclidean_1_online/ts_ifa
+2026-07-01 11:13:05,712 INFO [__main__] experiment done seconds=114.98
+2026-07-01 11:13:05,712 INFO [__main__] ========================================================================
+2026-07-01T11:13:06+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_1_online
+2026-07-01T11:13:06+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_3_online
+2026-07-01 11:13:09,456 INFO [__main__] ========================================================================
+2026-07-01 11:13:09,673 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_raw_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 11:13:09,673 INFO [__main__] payload load start
+2026-07-01 11:13:12,981 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:13:12,991 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:13:12,995 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:13:12,996 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:13:13,227 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:13:13,228 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:13:25,199 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092784 valid_nmse=0.165703
+2026-07-01 11:13:36,867 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.080325 valid_nmse=0.165712
+2026-07-01 11:13:48,495 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.074458 valid_nmse=0.165720
+2026-07-01 11:14:00,142 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.071383 valid_nmse=0.165725
+2026-07-01 11:14:11,677 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.068890 valid_nmse=0.165733
+2026-07-01 11:14:23,318 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.065760 valid_nmse=0.165734
+2026-07-01 11:14:35,062 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.063142 valid_nmse=0.165732
+2026-07-01 11:14:46,621 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.061372 valid_nmse=0.165728
+2026-07-01 11:14:58,229 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.059383 valid_nmse=0.165716
+2026-07-01 11:15:09,914 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.057884 valid_nmse=0.165707
+2026-07-01 11:15:09,914 INFO [__main__] training done seconds=116.69
+2026-07-01 11:15:09,914 INFO [__main__] evaluation start
+2026-07-01 11:15:09,949 INFO [__main__] evaluation done adapted_nmse=0.321452
+2026-07-01 11:15:10,916 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_raw_euclidean_3_online/ts_ifa
+2026-07-01 11:15:10,916 INFO [__main__] experiment done seconds=121.46
+2026-07-01 11:15:10,916 INFO [__main__] ========================================================================
+2026-07-01T11:15:11+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_3_online
+2026-07-01T11:15:11+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_10_online
+2026-07-01 11:15:14,643 INFO [__main__] ========================================================================
+2026-07-01 11:15:14,871 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_raw_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 11:15:14,872 INFO [__main__] payload load start
+2026-07-01 11:15:19,400 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:15:19,411 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:15:19,415 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:15:19,416 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:15:19,605 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:15:19,605 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:15:32,616 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092561 valid_nmse=0.165700
+2026-07-01 11:15:45,071 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.079402 valid_nmse=0.165704
+2026-07-01 11:15:57,576 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.074033 valid_nmse=0.165703
+2026-07-01 11:16:10,197 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.070588 valid_nmse=0.165714
+2026-07-01 11:16:22,583 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.067637 valid_nmse=0.165721
+2026-07-01 11:16:35,069 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.064738 valid_nmse=0.165721
+2026-07-01 11:16:47,631 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.062156 valid_nmse=0.165718
+2026-07-01 11:16:59,982 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.059927 valid_nmse=0.165715
+2026-07-01 11:17:12,466 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.057786 valid_nmse=0.165711
+2026-07-01 11:17:24,916 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.056142 valid_nmse=0.165706
+2026-07-01 11:17:24,916 INFO [__main__] training done seconds=125.31
+2026-07-01 11:17:24,916 INFO [__main__] evaluation start
+2026-07-01 11:17:24,966 INFO [__main__] evaluation done adapted_nmse=0.321504
+2026-07-01 11:17:25,911 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_raw_euclidean_10_online/ts_ifa
+2026-07-01 11:17:25,911 INFO [__main__] experiment done seconds=131.27
+2026-07-01 11:17:25,911 INFO [__main__] ========================================================================
+2026-07-01T11:17:26+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_raw_euclidean_10_online
+2026-07-01T11:17:26+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_1_online
+2026-07-01 11:17:29,753 INFO [__main__] ========================================================================
+2026-07-01 11:17:29,979 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_instance_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 11:17:29,979 INFO [__main__] payload load start
+2026-07-01 11:17:32,672 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:17:32,683 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:17:32,687 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:17:32,688 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:17:32,885 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:17:32,886 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:17:44,349 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092869 valid_nmse=0.165707
+2026-07-01 11:17:55,439 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.081360 valid_nmse=0.165711
+2026-07-01 11:18:06,537 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.075362 valid_nmse=0.165714
+2026-07-01 11:18:17,656 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.072389 valid_nmse=0.165723
+2026-07-01 11:18:28,657 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.070205 valid_nmse=0.165735
+2026-07-01 11:18:39,687 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.068037 valid_nmse=0.165737
+2026-07-01 11:18:50,858 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.065769 valid_nmse=0.165735
+2026-07-01 11:19:01,809 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.063724 valid_nmse=0.165731
+2026-07-01 11:19:12,958 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.061665 valid_nmse=0.165722
+2026-07-01 11:19:24,098 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.060365 valid_nmse=0.165713
+2026-07-01 11:19:24,098 INFO [__main__] training done seconds=111.21
+2026-07-01 11:19:24,098 INFO [__main__] evaluation start
+2026-07-01 11:19:24,130 INFO [__main__] evaluation done adapted_nmse=0.321503
+2026-07-01 11:19:25,098 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_instance_euclidean_1_online/ts_ifa
+2026-07-01 11:19:25,098 INFO [__main__] experiment done seconds=115.34
+2026-07-01 11:19:25,098 INFO [__main__] ========================================================================
+2026-07-01T11:19:25+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_1_online
+2026-07-01T11:19:25+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_3_online
+2026-07-01 11:19:28,936 INFO [__main__] ========================================================================
+2026-07-01 11:19:29,250 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_instance_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 11:19:29,250 INFO [__main__] payload load start
+2026-07-01 11:19:32,768 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:19:32,779 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:19:32,783 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:19:32,784 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:19:33,033 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:19:33,033 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:19:44,812 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092709 valid_nmse=0.165708
+2026-07-01 11:19:56,336 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.080190 valid_nmse=0.165713
+2026-07-01 11:20:07,789 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.074192 valid_nmse=0.165712
+2026-07-01 11:20:19,337 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.070913 valid_nmse=0.165720
+2026-07-01 11:20:30,672 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.068396 valid_nmse=0.165732
+2026-07-01 11:20:42,180 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.065620 valid_nmse=0.165733
+2026-07-01 11:20:53,710 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.062992 valid_nmse=0.165731
+2026-07-01 11:21:05,136 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.060904 valid_nmse=0.165724
+2026-07-01 11:21:16,566 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.058822 valid_nmse=0.165711
+2026-07-01 11:21:28,130 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.057416 valid_nmse=0.165699
+2026-07-01 11:21:28,131 INFO [__main__] training done seconds=115.10
+2026-07-01 11:21:28,131 INFO [__main__] evaluation start
+2026-07-01 11:21:28,164 INFO [__main__] evaluation done adapted_nmse=0.321504
+2026-07-01 11:21:29,138 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_instance_euclidean_3_online/ts_ifa
+2026-07-01 11:21:29,138 INFO [__main__] experiment done seconds=120.20
+2026-07-01 11:21:29,138 INFO [__main__] ========================================================================
+2026-07-01T11:21:29+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_3_online
+2026-07-01T11:21:29+02:00 training start dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-07-01 11:21:32,881 INFO [__main__] ========================================================================
+2026-07-01 11:21:33,159 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/168_24/chronos_instance_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 11:21:33,159 INFO [__main__] payload load start
+2026-07-01 11:21:36,353 INFO [__main__] payload load done train_samples=16440 valid_samples=6439 eval_samples=1781
+2026-07-01 11:21:36,364 INFO [__main__] payload scale split=train samples=16440 std_min=10.8713 std_q001=11.8242 std_q01=14.2364 std_q05=34.3163 std_q10=40.2802 std_median=52.4368 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:21:36,368 INFO [__main__] payload scale split=valid samples=6439 std_min=10.2928 std_q001=11.0074 std_q01=14.5677 std_q05=33.1668 std_q10=38.0597 std_median=50.2681 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:21:36,369 INFO [__main__] payload scale split=eval samples=1781 std_min=10.7988 std_q001=11.2627 std_q01=14.2271 std_q05=28.9536 std_q10=33.424 std_median=42.5802 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:21:36,555 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=841,704 parameters_trainable=841,704
+2026-07-01 11:21:36,555 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:21:49,139 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.092601 valid_nmse=0.165703
+2026-07-01 11:22:01,321 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.079214 valid_nmse=0.165708
+2026-07-01 11:22:13,412 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.073228 valid_nmse=0.165710
+2026-07-01 11:22:25,490 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.069721 valid_nmse=0.165717
+2026-07-01 11:22:37,553 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.066735 valid_nmse=0.165727
+2026-07-01 11:22:49,484 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.063911 valid_nmse=0.165728
+2026-07-01 11:23:01,579 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.061609 valid_nmse=0.165726
+2026-07-01 11:23:13,516 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.059622 valid_nmse=0.165719
+2026-07-01 11:23:25,561 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.057642 valid_nmse=0.165706
+2026-07-01 11:23:37,554 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.056147 valid_nmse=0.165694
+2026-07-01 11:23:37,555 INFO [__main__] training done seconds=121.00
+2026-07-01 11:23:37,555 INFO [__main__] evaluation start
+2026-07-01 11:23:37,595 INFO [__main__] evaluation done adapted_nmse=0.321473
+2026-07-01 11:23:38,583 INFO [__main__] outputs saved dir=outputs/results/solar/168_24/chronos_instance_euclidean_10_online/ts_ifa
+2026-07-01 11:23:38,583 INFO [__main__] experiment done seconds=125.70
+2026-07-01 11:23:38,583 INFO [__main__] ========================================================================
+2026-07-01T11:23:39+02:00 training done dataset=solar lags=168 horizon=24 run=chronos_instance_euclidean_10_online
+2026-07-01T11:23:39+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_1_online
+2026-07-01 11:23:42,616 INFO [__main__] ========================================================================
+2026-07-01 11:23:42,843 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_raw_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 11:23:42,843 INFO [__main__] payload load start
+2026-07-01 11:23:46,465 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:23:46,491 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:23:46,496 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:23:46,499 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:23:46,720 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:23:46,721 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:23:58,794 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.078429 valid_nmse=0.125481
+2026-07-01 11:24:10,599 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.066302 valid_nmse=0.125465
+2026-07-01 11:24:22,359 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.061664 valid_nmse=0.125455
+2026-07-01 11:24:34,075 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.057867 valid_nmse=0.125450
+2026-07-01 11:24:45,709 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.054208 valid_nmse=0.125443
+2026-07-01 11:24:57,425 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.051407 valid_nmse=0.125432
+2026-07-01 11:25:09,059 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.048739 valid_nmse=0.125421
+2026-07-01 11:25:20,746 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.046571 valid_nmse=0.125413
+2026-07-01 11:25:32,472 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.044661 valid_nmse=0.125409
+2026-07-01 11:25:44,232 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.042951 valid_nmse=0.125404
+2026-07-01 11:25:44,232 INFO [__main__] training done seconds=117.51
+2026-07-01 11:25:44,232 INFO [__main__] evaluation start
+2026-07-01 11:25:44,259 INFO [__main__] evaluation done adapted_nmse=0.242004
+2026-07-01 11:25:45,227 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_raw_euclidean_1_online/ts_ifa
+2026-07-01 11:25:45,228 INFO [__main__] experiment done seconds=122.61
+2026-07-01 11:25:45,228 INFO [__main__] ========================================================================
+2026-07-01T11:25:45+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_1_online
+2026-07-01T11:25:45+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_3_online
+2026-07-01 11:25:48,962 INFO [__main__] ========================================================================
+2026-07-01 11:25:49,269 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_raw_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 11:25:49,269 INFO [__main__] payload load start
+2026-07-01 11:25:55,191 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:25:55,216 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:25:55,222 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:25:55,224 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:25:55,423 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:25:55,423 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:26:08,592 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.078225 valid_nmse=0.125478
+2026-07-01 11:26:21,403 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.065380 valid_nmse=0.125465
+2026-07-01 11:26:34,470 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.059912 valid_nmse=0.125460
+2026-07-01 11:26:47,200 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.055646 valid_nmse=0.125456
+2026-07-01 11:27:00,010 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.051860 valid_nmse=0.125450
+2026-07-01 11:27:12,771 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.049008 valid_nmse=0.125440
+2026-07-01 11:27:25,646 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.046351 valid_nmse=0.125428
+2026-07-01 11:27:38,366 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.044212 valid_nmse=0.125415
+2026-07-01 11:27:51,197 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.042310 valid_nmse=0.125406
+2026-07-01 11:28:03,859 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.040622 valid_nmse=0.125397
+2026-07-01 11:28:03,859 INFO [__main__] training done seconds=128.44
+2026-07-01 11:28:03,859 INFO [__main__] evaluation start
+2026-07-01 11:28:03,890 INFO [__main__] evaluation done adapted_nmse=0.242016
+2026-07-01 11:28:04,927 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_raw_euclidean_3_online/ts_ifa
+2026-07-01 11:28:04,927 INFO [__main__] experiment done seconds=135.97
+2026-07-01 11:28:04,927 INFO [__main__] ========================================================================
+2026-07-01T11:28:05+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_3_online
+2026-07-01T11:28:05+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_10_online
+2026-07-01 11:28:08,688 INFO [__main__] ========================================================================
+2026-07-01 11:28:08,939 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_raw_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 11:28:08,939 INFO [__main__] payload load start
+2026-07-01 11:28:20,708 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:28:20,735 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:28:20,741 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:28:20,743 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:28:20,981 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:28:20,981 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:28:36,795 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.078092 valid_nmse=0.125481
+2026-07-01 11:28:52,352 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.064604 valid_nmse=0.125475
+2026-07-01 11:29:07,797 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.058541 valid_nmse=0.125475
+2026-07-01 11:29:23,289 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.054170 valid_nmse=0.125471
+2026-07-01 11:29:38,364 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.050497 valid_nmse=0.125464
+2026-07-01 11:29:53,612 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.047776 valid_nmse=0.125454
+2026-07-01 11:30:08,781 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.045217 valid_nmse=0.125444
+2026-07-01 11:30:24,234 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.043171 valid_nmse=0.125433
+2026-07-01 11:30:39,737 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.041342 valid_nmse=0.125422
+2026-07-01 11:30:54,982 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.039721 valid_nmse=0.125411
+2026-07-01 11:30:54,982 INFO [__main__] training done seconds=154.00
+2026-07-01 11:30:54,982 INFO [__main__] evaluation start
+2026-07-01 11:30:55,032 INFO [__main__] evaluation done adapted_nmse=0.242174
+2026-07-01 11:30:56,014 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_raw_euclidean_10_online/ts_ifa
+2026-07-01 11:30:56,014 INFO [__main__] experiment done seconds=167.33
+2026-07-01 11:30:56,014 INFO [__main__] ========================================================================
+2026-07-01T11:30:56+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_raw_euclidean_10_online
+2026-07-01T11:30:56+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_1_online
+2026-07-01 11:30:59,764 INFO [__main__] ========================================================================
+2026-07-01 11:31:00,015 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_instance_euclidean_1_online epochs=10000 batch_size=256
+2026-07-01 11:31:00,016 INFO [__main__] payload load start
+2026-07-01 11:31:03,849 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:31:03,875 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:31:03,880 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:31:03,883 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:31:04,082 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:31:04,082 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:31:16,695 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.078294 valid_nmse=0.125483
+2026-07-01 11:31:28,860 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.065922 valid_nmse=0.125471
+2026-07-01 11:31:40,888 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.061195 valid_nmse=0.125463
+2026-07-01 11:31:52,935 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.057300 valid_nmse=0.125458
+2026-07-01 11:32:04,974 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.053647 valid_nmse=0.125452
+2026-07-01 11:32:17,043 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.050933 valid_nmse=0.125441
+2026-07-01 11:32:29,014 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.048356 valid_nmse=0.125427
+2026-07-01 11:32:41,019 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.046253 valid_nmse=0.125418
+2026-07-01 11:32:52,937 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.044371 valid_nmse=0.125412
+2026-07-01 11:33:04,952 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.042659 valid_nmse=0.125409
+2026-07-01 11:33:04,952 INFO [__main__] training done seconds=120.87
+2026-07-01 11:33:04,952 INFO [__main__] evaluation start
+2026-07-01 11:33:04,985 INFO [__main__] evaluation done adapted_nmse=0.241913
+2026-07-01 11:33:06,023 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_instance_euclidean_1_online/ts_ifa
+2026-07-01 11:33:06,023 INFO [__main__] experiment done seconds=126.26
+2026-07-01 11:33:06,023 INFO [__main__] ========================================================================
+2026-07-01T11:33:06+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_1_online
+2026-07-01T11:33:06+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_3_online
+2026-07-01 11:33:10,117 INFO [__main__] ========================================================================
+2026-07-01 11:33:10,342 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_instance_euclidean_3_online epochs=10000 batch_size=256
+2026-07-01 11:33:10,342 INFO [__main__] payload load start
+2026-07-01 11:33:17,258 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:33:17,283 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:33:17,289 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:33:17,291 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:33:17,521 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:33:17,521 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:33:30,722 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.078032 valid_nmse=0.125483
+2026-07-01 11:33:43,707 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.064956 valid_nmse=0.125476
+2026-07-01 11:33:56,573 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.059550 valid_nmse=0.125471
+2026-07-01 11:34:09,415 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.055420 valid_nmse=0.125462
+2026-07-01 11:34:22,106 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.051759 valid_nmse=0.125450
+2026-07-01 11:34:34,938 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.049017 valid_nmse=0.125435
+2026-07-01 11:34:47,608 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.046435 valid_nmse=0.125421
+2026-07-01 11:35:00,483 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.044364 valid_nmse=0.125409
+2026-07-01 11:35:13,301 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.042497 valid_nmse=0.125400
+2026-07-01 11:35:26,233 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.040837 valid_nmse=0.125393
+2026-07-01 11:35:26,234 INFO [__main__] training done seconds=128.71
+2026-07-01 11:35:26,234 INFO [__main__] evaluation start
+2026-07-01 11:35:26,265 INFO [__main__] evaluation done adapted_nmse=0.242017
+2026-07-01 11:35:27,294 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_instance_euclidean_3_online/ts_ifa
+2026-07-01 11:35:27,294 INFO [__main__] experiment done seconds=137.18
+2026-07-01 11:35:27,294 INFO [__main__] ========================================================================
+2026-07-01T11:35:28+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_3_online
+2026-07-01T11:35:28+02:00 training start dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-07-01 11:35:31,086 INFO [__main__] ========================================================================
+2026-07-01 11:35:31,378 INFO [__main__] experiment start kind=ts_ifa_train input=outputs/results/solar/672_168/chronos_instance_euclidean_10_online epochs=10000 batch_size=256
+2026-07-01 11:35:31,378 INFO [__main__] payload load start
+2026-07-01 11:35:36,169 INFO [__main__] payload load done train_samples=12741 valid_samples=2740 eval_samples=1096
+2026-07-01 11:35:36,194 INFO [__main__] payload scale split=train samples=12741 std_min=12.1265 std_q001=12.3732 std_q01=14.3482 std_q05=36.4761 std_q10=40.3591 std_median=53.0035 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:35:36,200 INFO [__main__] payload scale split=valid samples=2740 std_min=12.5191 std_q001=12.6491 std_q01=14.064 std_q05=35.0613 std_q10=38.5084 std_median=50.3509 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:35:36,202 INFO [__main__] payload scale split=eval samples=1096 std_min=13.0171 std_q001=13.3176 std_q01=14.113 std_q05=32.3979 std_q10=34.4098 std_median=44.4516 below_1e-8=0 below_1e-6=0 below_1e-3=0
+2026-07-01 11:35:36,415 INFO [__main__] model ready name=TS-IFA device=cuda parameters_total=1,718,880 parameters_trainable=1,718,880
+2026-07-01 11:35:36,415 INFO [__main__] training start epochs=10000 steps_per_epoch=1 total_steps=10000 valid_eval_freq=1000 logging_eval_freq=1000
+2026-07-01 11:35:52,242 INFO [__main__] training progress step=1000/10000 epoch=1000/10000 train_interval_nmse=0.077909 valid_nmse=0.125486
+2026-07-01 11:36:08,566 INFO [__main__] training progress step=2000/10000 epoch=2000/10000 train_interval_nmse=0.064393 valid_nmse=0.125484
+2026-07-01 11:36:24,678 INFO [__main__] training progress step=3000/10000 epoch=3000/10000 train_interval_nmse=0.058569 valid_nmse=0.125481
+2026-07-01 11:36:41,108 INFO [__main__] training progress step=4000/10000 epoch=4000/10000 train_interval_nmse=0.054253 valid_nmse=0.125473
+2026-07-01 11:36:57,580 INFO [__main__] training progress step=5000/10000 epoch=5000/10000 train_interval_nmse=0.050588 valid_nmse=0.125464
+2026-07-01 11:37:13,750 INFO [__main__] training progress step=6000/10000 epoch=6000/10000 train_interval_nmse=0.047877 valid_nmse=0.125456
+2026-07-01 11:37:30,049 INFO [__main__] training progress step=7000/10000 epoch=7000/10000 train_interval_nmse=0.045348 valid_nmse=0.125446
+2026-07-01 11:37:46,371 INFO [__main__] training progress step=8000/10000 epoch=8000/10000 train_interval_nmse=0.043329 valid_nmse=0.125437
+2026-07-01 11:38:02,477 INFO [__main__] training progress step=9000/10000 epoch=9000/10000 train_interval_nmse=0.041522 valid_nmse=0.125429
+2026-07-01 11:38:18,896 INFO [__main__] training progress step=10000/10000 epoch=10000/10000 train_interval_nmse=0.039921 valid_nmse=0.125421
+2026-07-01 11:38:18,896 INFO [__main__] training done seconds=162.48
+2026-07-01 11:38:18,896 INFO [__main__] evaluation start
+2026-07-01 11:38:18,947 INFO [__main__] evaluation done adapted_nmse=0.241975
+2026-07-01 11:38:20,074 INFO [__main__] outputs saved dir=outputs/results/solar/672_168/chronos_instance_euclidean_10_online/ts_ifa
+2026-07-01 11:38:20,074 INFO [__main__] experiment done seconds=168.99
+2026-07-01 11:38:20,074 INFO [__main__] ========================================================================
+2026-07-01T11:38:20+02:00 training done dataset=solar lags=672 horizon=168 run=chronos_instance_euclidean_10_online
+2026-07-01T11:38:20+02:00 job done kind=ts_ifa_training
