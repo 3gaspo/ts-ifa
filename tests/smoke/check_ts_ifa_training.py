@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from ts_ifa.experiments.train_ts_ifa import (  # noqa: E402
     PredictionPayloadDataset,
+    loss_components,
     main,
     prepare_batch,
 )
@@ -117,6 +118,10 @@ def check_identity_initialized_mixture() -> None:
     expected_logits[:, 1:, :] = config.mixture_gate_init
     expected_weights = torch.softmax(expected_logits, dim=1)
     torch.testing.assert_close(outputs["mixture_weights"], expected_weights)
+    torch.testing.assert_close(outputs["residual_delta"], torch.zeros_like(outputs["residual_delta"]))
+    torch.testing.assert_close(outputs["memory_delta"], torch.zeros_like(outputs["memory_delta"]))
+    torch.testing.assert_close(outputs["residual_prediction"], batch["pred"])
+    torch.testing.assert_close(outputs["memory_prediction"], batch["pred"])
     torch.testing.assert_close(outputs["memory_prediction"], batch["pred"] + outputs["memory_delta"])
     torch.testing.assert_close(
         outputs["prediction"],
@@ -132,9 +137,39 @@ def check_identity_initialized_mixture() -> None:
     )
 
 
+def check_memory_loss_component() -> None:
+    outputs = {
+        "prediction": torch.tensor([[1.0, 3.0]]),
+        "residual_delta": torch.tensor([[0.0, 2.0]]),
+        "memory_delta": torch.tensor([[1.0, 0.0]]),
+    }
+    batch = {
+        "y": torch.tensor([[2.0, 4.0]]),
+        "pred": torch.tensor([[1.0, 1.0]]),
+    }
+    state = {"loss_scale": torch.ones((1, 1))}
+    losses = loss_components(outputs, batch, state, beta=0.5, gamma=0.25)
+    residual_target = batch["y"] - batch["pred"]
+    expected_prediction = (outputs["prediction"] - batch["y"]).pow(2).mean()
+    expected_regularization = (outputs["prediction"] - batch["pred"]).pow(2).mean()
+    expected_residual = (outputs["residual_delta"] - residual_target).pow(2).mean()
+    expected_memory = (outputs["memory_delta"] - residual_target).pow(2).mean()
+    expected_total = (
+        expected_prediction
+        + 0.5 * expected_regularization
+        + 0.25 * (expected_residual + expected_memory)
+    )
+    torch.testing.assert_close(losses["prediction"], expected_prediction)
+    torch.testing.assert_close(losses["regularization"], expected_regularization)
+    torch.testing.assert_close(losses["residual"], expected_residual)
+    torch.testing.assert_close(losses["memory"], expected_memory)
+    torch.testing.assert_close(losses["loss"], expected_total)
+
+
 def run() -> None:
     check_query_scale_transfer()
     check_identity_initialized_mixture()
+    check_memory_loss_component()
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         train_path = base / "train_prediction_payload.pt"

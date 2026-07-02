@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.sweep_results_table import generate_sweep_results_tables
+from ts_ifa.visu.sweep_results_table import generate_sweep_results_tables
 
 
 def _write(path: Path, payload) -> None:
@@ -80,14 +80,23 @@ def main() -> None:
         assert r"\textit{Improvement}" not in baselines
         assert "Overall improvement" not in baselines
         assert r"raw\_L2\_1" in baselines
-        assert r"\textbf{0.82}" in baselines
+        assert "Direct Chronos NMSE: 1.10" in baselines
+        assert "\nchronos &" not in baselines
+        assert r"\textbf{25.45\%}" in baselines
+        assert r"{\scriptsize 0.82}" in baselines
 
         gates = (root / "tables" / "gates_results.tex").read_text(encoding="utf-8")
-        assert r"bayes-s & 0.98 & -- & -- & \textbf{0.72}" in gates
+        assert (
+            r"bayes-s & \begin{tabular}{@{}c@{}}10.91\%\\{\scriptsize 0.98}\end{tabular} & -- & -- & "
+            r"\begin{tabular}{@{}c@{}}\textbf{34.55\%}\\{\scriptsize 0.72}\end{tabular}"
+        ) in gates
         assert r"cb-cls-s" in gates
 
         ts_ifa = (root / "tables" / "ts_ifa_results.tex").read_text(encoding="utf-8")
-        assert r"TS-IFA & 0.94 & -- & -- & \textbf{0.68}" in ts_ifa
+        assert (
+            r"TS-IFA & \begin{tabular}{@{}c@{}}14.55\%\\{\scriptsize 0.94}\end{tabular} & -- & -- & "
+            r"\begin{tabular}{@{}c@{}}\textbf{38.18\%}\\{\scriptsize 0.68}\end{tabular}"
+        ) in ts_ifa
         assert ts_ifa.count(r"\begin{table}") == 2
 
     print("sweep results table checks passed")

@@ -25,7 +25,7 @@ GATE_METHODS="chronos,$RUN/context_forecast,$RUN/bayes_context_scalar,$RUN/bayes
 TS_IFA_METHODS="chronos,$RUN/TS-IFA"
 
 echo "$(date -Is) job start kind=results_tables"
-srun python -m ts_ifa.results_table \
+srun python -m ts_ifa.visu.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/results.tex" \
   --metric nmse \
@@ -36,7 +36,7 @@ srun python -m ts_ifa.results_table \
   --caption "Main nMSE forecasting results" \
   --label tab:results
 
-srun python -m ts_ifa.results_table \
+srun python -m ts_ifa.visu.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/results_positive.tex" \
   --metric nmse \
@@ -48,7 +48,7 @@ srun python -m ts_ifa.results_table \
   --caption "Main nMSE forecasting results with positive overall improvement" \
   --label tab:results-positive
 
-srun python -m ts_ifa.results_table \
+srun python -m ts_ifa.visu.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/baselines_results.tex" \
   --metric nmse \
@@ -60,7 +60,7 @@ srun python -m ts_ifa.results_table \
   --caption "Baseline nMSE results and optimistic T3-fitted bounds" \
   --label tab:baselines-results
 
-srun python -m ts_ifa.results_table \
+srun python -m ts_ifa.visu.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/gates_results.tex" \
   --metric nmse \
@@ -71,7 +71,7 @@ srun python -m ts_ifa.results_table \
   --caption "Gate nMSE results and ground-truth-informed oracles" \
   --label tab:gates-results
 
-srun python -m ts_ifa.results_table \
+srun python -m ts_ifa.visu.results_table \
   "$OUT_ROOT" \
   --output "$OUT_ROOT/ts_ifa_results.tex" \
   --metric nmse \

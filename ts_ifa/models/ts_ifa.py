@@ -18,6 +18,14 @@ def mlp(input_dim: int, hidden_dim: int, output_dim: int, dropout: float = 0.0) 
     )
 
 
+def zero_initialize_output(module: nn.Sequential) -> None:
+    output = module[-1]
+    if not isinstance(output, nn.Linear):
+        raise TypeError("expected the last module to be a Linear layer")
+    nn.init.zeros_(output.weight)
+    nn.init.zeros_(output.bias)
+
+
 class CrossAttentionBlock(nn.Module):
     """Projected multi-head cross-attention followed by norm and feed-forward layers."""
 
@@ -130,6 +138,7 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             horizon,
             dropout=config.dropout,
         )
+        zero_initialize_output(self.residual_head)
 
         self.memory_attention = CrossAttentionBlock(
             query_dim=lags,
@@ -146,6 +155,7 @@ class TimeSeriesInformedForecastingAdapter(nn.Module):
             horizon,
             dropout=config.dropout,
         )
+        zero_initialize_output(self.memory_head)
 
         self.mixture_attention = CrossAttentionBlock(
             query_dim=lags,

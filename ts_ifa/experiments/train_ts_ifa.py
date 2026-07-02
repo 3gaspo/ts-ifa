@@ -237,12 +237,15 @@ def loss_components(
     reg_loss = ((prediction - batch["pred"]) / scale).pow(2).mean()
     residual_target = batch["y"] - batch["pred"]
     residual_loss = ((outputs["residual_delta"] - residual_target) / scale).pow(2).mean()
-    total = pred_loss + float(beta) * reg_loss + float(gamma) * residual_loss
+    memory_loss = ((outputs["memory_delta"] - residual_target) / scale).pow(2).mean()
+    branch_loss = residual_loss + memory_loss
+    total = pred_loss + float(beta) * reg_loss + float(gamma) * branch_loss
     return {
         "loss": total,
         "prediction": pred_loss,
         "regularization": reg_loss,
         "residual": residual_loss,
+        "memory": memory_loss,
     }
 
 
@@ -390,7 +393,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--beta", type=float, default=1e-2, help="Penalty toward vanilla prediction")
-    parser.add_argument("--gamma", type=float, default=1e-2, help="Residual branch supervision weight")
+    parser.add_argument("--gamma", type=float, default=1e-2, help="Branch delta supervision weight")
     parser.add_argument("--normalization", default="instance", choices=["instance", "none"])
     parser.add_argument("--device", default="auto")
     parser.add_argument("--seed", type=int, default=None)
@@ -562,7 +565,13 @@ def main() -> dict[str, Path]:
         valid_eval_freq,
         logging_eval_freq,
     )
-    recent_totals = {"loss": 0.0, "prediction": 0.0, "regularization": 0.0, "residual": 0.0}
+    recent_totals = {
+        "loss": 0.0,
+        "prediction": 0.0,
+        "regularization": 0.0,
+        "residual": 0.0,
+        "memory": 0.0,
+    }
     recent_seen = 0
     step = 0
     for epoch in range(1, args.epochs + 1):
@@ -711,6 +720,7 @@ def main() -> dict[str, Path]:
                 "normalization": args.normalization,
                 "beta": args.beta,
                 "gamma": args.gamma,
+                "gamma_components": ["residual_delta", "memory_delta"],
                 "train_split": "T1",
                 "validation_split": "T2",
                 "final_eval_split": "T3",

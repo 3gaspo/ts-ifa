@@ -26,7 +26,7 @@ SPACE_ARG="$(IFS=,; echo "${DISTANCE_SPACES[*]}")"
 NEIGHBOR_ARG="$(IFS=,; echo "${NEIGHBORS[*]}")"
 
 echo "$(date -Is) job start kind=sweep_results_tables datasets=$DATASET_ARG settings=$SETTING_ARG spaces=$SPACE_ARG neighbors=$NEIGHBOR_ARG mode=$RETRIEVAL_MODE"
-srun python -m ts_ifa.sweep_results_table \
+srun python -m ts_ifa.visu.sweep_results_table \
   "$OUT_ROOT" \
   --output-dir "$OUTPUT_DIR" \
   --metric nmse \

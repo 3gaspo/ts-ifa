@@ -150,6 +150,23 @@ def _matrix_row_label(variant: str) -> str:
     return _method_label(f"run/{variant}", True).rsplit("/", 1)[-1]
 
 
+def _relative_improvement(reference: float, value: float, lower_is_better: bool) -> float:
+    if not math.isfinite(reference) or not math.isfinite(value) or reference == 0:
+        return math.nan
+    direction = 1.0 if lower_is_better else -1.0
+    return direction * (reference - value) / abs(reference) * 100.0
+
+
+def _matrix_cell(value: float, improvement: float, decimals: int, bold: bool) -> str:
+    if not math.isfinite(value) or not math.isfinite(improvement):
+        return "--"
+    top = f"{improvement:.{decimals}f}" + r"\%"
+    if bold:
+        top = rf"\textbf{{{top}}}"
+    bottom = rf"{{\scriptsize {value:.{decimals}f}}}"
+    return rf"\begin{{tabular}}{{@{{}}c@{{}}}}{top}\\{bottom}\end{{tabular}}"
+
+
 def build_matrix_table(
     results: Sequence[Result],
     *,
@@ -169,11 +186,21 @@ def build_matrix_table(
 ) -> str:
     """Render the neo-seminar matrix: models as rows, retrieval settings as columns."""
     dataset_settings = dataset_settings or {}
-    row_variants = ["chronos", *variants] if include_chronos else list(variants)
+    del include_chronos
+    row_variants = list(variants)
+    reference = _average_metric(
+        results,
+        method="chronos",
+        metric=metric,
+        split=split,
+        datasets=datasets,
+        settings=settings,
+        dataset_settings=dataset_settings,
+    )
     values: dict[tuple[str, str], float] = {}
     for variant in row_variants:
         for run in runs:
-            method = "chronos" if variant == "chronos" else f"{run}/{variant}"
+            method = f"{run}/{variant}"
             values[(variant, run)] = _average_metric(
                 results,
                 method=method,
@@ -191,16 +218,24 @@ def build_matrix_table(
         if not variant.startswith("oracle_") and variant not in excluded_selectors
     }
     finite = [
-        value
+        improvement
         for (variant, _), value in values.items()
-        if variant in eligible_variants and math.isfinite(value)
+        if variant in eligible_variants
+        and math.isfinite(improvement := _relative_improvement(reference, value, lower_is_better))
     ]
-    best = (min(finite) if lower_is_better else max(finite)) if finite else None
-    column_spec = "l" + "r" * len(runs)
+    best = max(finite) if finite else None
+    column_spec = "l" + "c" * len(runs)
+    caption_text = caption or f"Average {metric.upper()} by retrieval setting."
+    caption_separator = " " if caption_text.rstrip().endswith((".", "?", "!")) else ". "
+    reference_text = (
+        f"{caption_separator}Direct Chronos {metric.upper()}: {reference:.{decimals}f}."
+        if math.isfinite(reference)
+        else f"{caption_separator}Direct Chronos {metric.upper()}: unavailable."
+    )
     lines = [
         r"\begin{table}[htbp]",
         r"\centering",
-        rf"\caption{{{_latex(caption or f'Average {metric.upper()} by retrieval setting.')}}}",
+        rf"\caption{{{_latex(caption_text + reference_text)}}}",
         r"\resizebox{\textwidth}{!}{%",
         rf"\begin{{tabular}}{{{column_spec}}}",
         r"\toprule",
@@ -211,17 +246,13 @@ def build_matrix_table(
         cells = []
         for run in runs:
             value = values[(variant, run)]
-            if not math.isfinite(value):
-                cells.append("--")
-                continue
-            cell = f"{value:.{decimals}f}"
-            if (
+            improvement = _relative_improvement(reference, value, lower_is_better)
+            is_best = (
                 variant in eligible_variants
                 and best is not None
-                and math.isclose(value, best, rel_tol=1e-12, abs_tol=1e-15)
-            ):
-                cell = rf"\textbf{{{cell}}}"
-            cells.append(cell)
+                and math.isclose(improvement, best, rel_tol=1e-12, abs_tol=1e-15)
+            )
+            cells.append(_matrix_cell(value, improvement, decimals, is_best))
         lines.append(" & ".join([_latex(_matrix_row_label(variant)), *cells]) + r" \\")
     lines.extend([r"\bottomrule", r"\end{tabular}%", r"}", rf"\label{{{_latex(label)}}}", r"\end{table}"])
     return "\n".join(lines) + "\n"

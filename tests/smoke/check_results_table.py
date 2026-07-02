@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ts_ifa.results_table import discover_results, generate_results_table
+from ts_ifa.visu.results_table import discover_results, generate_results_table
 
 
 def _write(path: Path, payload) -> None:

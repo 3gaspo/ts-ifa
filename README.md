@@ -7,8 +7,8 @@ This repository contains Python tools for retrieval-based residual adaptation ex
 - `ts_ifa/data/`: CSV loading, split helpers, aligned windows, representations, and exact KNN search.
 - `ts_ifa/models/`: common forecast wrapper, persistence/linear baselines, Chronos, PatchTST, and the TS-IFA adapter.
 - `ts_ifa/experiments/`: extraction, direct evaluation, payload baselines, feature analysis, TS-IFA training, and shared logging.
-- `ts_ifa/visu/`: plotting helpers and the artifact-only retrieval dashboard notebook.
-- `ts_ifa/slurm/`: cluster scripts for extraction, baselines, gates, TS-IFA training, and final LaTeX tables.
+- `ts_ifa/visu/`: plotting helpers, artifact-only dashboard code, and result-table builders.
+- `ts_ifa/slurm/`: cluster scripts for the integrated extraction/direct/baseline/gate sweep, TS-IFA training, and final LaTeX tables.
 - `tests/smoke/`: tiny CSV fixture and load/inference checks for local or cluster sanity tests.
 
 ## Data Flow
@@ -130,17 +130,16 @@ both `datasets/` and `weights/`; Chronos weights are expected under
 `outputs/results/`, while SLURM stdout and stderr are written under
 `script_outputs/`.
 
-First evaluate direct forecasts and create the shared retrieval payloads:
+Run the integrated sweep to evaluate direct Chronos forecasts, create the
+shared retrieval payloads, fit the baseline adapters, and fit the gates:
 
 ```bash
-sbatch ts_ifa/slurm/extract_payloads.slurm
+sbatch ts_ifa/slurm/extract_direct_baselines_gates.slurm
 ```
 
-After extraction succeeds, the three model-family jobs can run concurrently:
+After the sweep has produced retrieval payloads, train TS-IFA separately:
 
 ```bash
-sbatch ts_ifa/slurm/evaluate_baselines.slurm
-sbatch ts_ifa/slurm/evaluate_gates.slurm
 sbatch ts_ifa/slurm/train_ts_ifa.slurm
 ```
 
@@ -150,6 +149,13 @@ Finally, build the table only after all desired family jobs have completed:
 sbatch ts_ifa/slurm/build_results_table.slurm
 ```
 
+`build_results_table.slurm` calls the generic result-table builder repeatedly
+for one selected retrieval run and writes the main, positive-only, baseline,
+gate, and TS-IFA publication tables. `build_sweep_results_table.slurm` calls
+the sweep-table builder once; it reuses the same result discovery code but
+writes family-specific regular and matrix tables across retrieval spaces and
+neighbor counts.
+
 To build the retrieval-sweep tables used for the seminar format, select
 `DATASETS`, `SETTINGS`, `DISTANCE_SPACES`, and `NEIGHBORS` in the script, then
 run:
@@ -158,13 +164,7 @@ run:
 sbatch ts_ifa/slurm/build_sweep_results_table.slurm
 ```
 
-For the current baseline ablation grid, run the combined sweep:
-
-```bash
-sbatch ts_ifa/slurm/baseline_sweep.slurm
-```
-
-It evaluates raw and instance-normalized L2 retrieval with 1, 3, and 10
+The current combined sweep evaluates raw and instance-normalized L2 retrieval with 1, 3, and 10
 neighbors, then writes both `baselines/` and CatBoost `gates/` artifacts for
 each run.
 
@@ -172,13 +172,13 @@ The current scripts run electricity and hourly-summed solar for L-H settings
 168-24 and 672-168. Dataset-specific CSV options are read from
 `${SHARED_ROOT}/datasets/<dataset>/config.json`; electricity drops the
 configured legacy series and solar uses hourly `sum` aggregation. All runs use Chronos,
-instance-normalized L2 retrieval,
-10 neighbors, online retrieval, 24-step T1/T2 query strides, a 128-step T3
+raw and instance-normalized L2 retrieval,
+1, 3, and 10 neighbors, online retrieval, 24-step T1/T2 query strides, a 128-step T3
 evaluation stride, and a 30,000-window datastore cap with a 24-step aligned
-datastore stride. The extraction job is the only job that loads Chronos and builds T1/T2/T3
-retrieval payloads. It also evaluates and plots the configured direct models on
-T3. Downstream jobs only read those payloads and write to separate `baselines/`,
-`gates/`, and `ts_ifa/` folders, so they do not overwrite one another.
+datastore stride. The integrated sweep job loads Chronos, builds T1/T2/T3
+retrieval payloads, evaluates and plots the direct model on T3, and writes
+separate `baselines/` and `gates/` folders. The TS-IFA job only reads those
+payloads and writes to `ts_ifa/`, so it does not overwrite those artifacts.
 
 Baseline mixtures fit on T1. Gates fit on T2 and are evaluated only on T3. Two
 no-feature Bayes gates choose context whenever the T2 average
@@ -206,7 +206,7 @@ residuals, and a horizon-wise ridge over neighbor residuals. The full ridge
 baseline uses only the vanilla forecast, the context forecast, and neighbor
 horizons.
 
-Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual-supervision losses in that normalized space. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job trains for 10000 epochs, samples random T1 date/user examples for one optimizer step per epoch, evaluates full deterministic T2 validation every `--valid-eval-freq` optimizer steps, records the mean T1 optimizer-batch loss over the same interval, logs those train/valid values every `--logging-eval-freq` steps, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`. Per-step train losses are saved in `training_history.json`; the plot hides them by default for TS-IFA, but `--plot-step-train-loss` adds the noisy step-wise curve. The bundled SLURM job sets both frequencies to 1000 steps, giving 10 logged eval points.
+Before retrieved examples are given to the forecasting model, baselines, or TS-IFA, the neighbor lookback statistics transfer their lookbacks, horizons, and forecasts onto the query lookback's level and scale. Residuals receive the scale transform only, since their additive level cancels. TS-IFA then instance-normalizes all query-scale tensors with the query statistics by default and computes its prediction, vanilla-regularization, and residual/memory branch delta-supervision losses in that normalized space; both delta heads are zero-initialized so they start as identity corrections to the vanilla forecast. With `--normalization none`, losses are still scaled by the query lookback standard deviation. The TS-IFA job trains for 10000 epochs, samples random T1 date/user examples for one optimizer step per epoch, evaluates full deterministic T2 validation every `--valid-eval-freq` optimizer steps, records the mean T1 optimizer-batch loss over the same interval, logs those train/valid values every `--logging-eval-freq` steps, evaluates T3 once after training, and writes `ts_ifa/eval_metrics.json` plus `ts_ifa/training_nmse.pdf`. Per-step train losses are saved in `training_history.json`; the plot hides them by default for TS-IFA, but `--plot-step-train-loss` adds the noisy step-wise curve. The bundled SLURM job sets both frequencies to 1000 steps, giving 10 logged eval points.
 
 The dedicated result job writes five nMSE tables:
 
@@ -225,10 +225,12 @@ The sweep result job writes three nMSE files under
 `gates_results.tex`, and `ts_ifa_results.tex`. Each file contains two table
 formats: the regular dataset/setting rows with model columns, and a
 seminar-style matrix with models as rows and retrieval settings
-(`space_metric_K`) as columns. Matrix cells are average nMSE values over the
-selected datasets and L-H settings, shown with two decimals and the best value
-among eligible held-out methods in the whole matrix in bold. Diagnostic T3-fit
-and oracle rows are displayed but not eligible for that bold marker.
+(`space_metric_K`) as columns. The matrix omits the repeated direct Chronos
+row and reports that reference value in the caption. Each matrix cell shows
+relative improvement over direct Chronos in percent, with the average nMSE
+underneath in smaller type. The best relative improvement among eligible
+held-out methods in the whole matrix is bold. Diagnostic T3-fit and oracle
+rows are displayed but not eligible for that bold marker.
 
 The result loader combines direct
 `univariate_summary.json`, adapter `baseline_metrics.json`, gate
@@ -243,7 +245,7 @@ is displayed as `IN_L2_10/Y-ridge`, while an explicitly unnormalized run named
 Generate or regenerate a table independently with:
 
 ```bash
-python -m ts_ifa.results_table outputs/results \
+python -m ts_ifa.visu.results_table outputs/results \
   --metric nmse --split eval \
   --datasets electricity,traffic \
   --dataset-settings electricity=168_24,672_168 \
